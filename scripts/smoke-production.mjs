@@ -28,6 +28,24 @@ async function assertResponse(path, check) {
   console.log(`PASS ${path} (${response.status})`);
 }
 
+async function assertStatus(path, expectedStatus) {
+  const response = await fetch(new URL(path, serviceUrl), {
+    redirect: "follow",
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (response.status !== expectedStatus) {
+    throw new Error(`${path} returned HTTP ${response.status}; expected ${expectedStatus}`);
+  }
+  console.log(`PASS ${path} (${response.status})`);
+}
+
+function expectContentType(expected) {
+  return async (response) => {
+    const contentType = response.headers.get("content-type") ?? "";
+    if (!contentType.startsWith(expected)) throw new Error(`Expected ${expected}, received ${contentType || "no content type"}`);
+  };
+}
+
 try {
   await assertResponse("/", async (response) => {
     const body = await response.text();
@@ -37,7 +55,12 @@ try {
     const body = await response.json();
     if (body.status !== "ok") throw new Error("Health response is not { status: 'ok' }");
   });
-  console.log("Public shell and health endpoint passed. Run a real PDF translation separately.");
+  await assertResponse("/sample/trangngu-sample-original.pdf", expectContentType("application/pdf"));
+  await assertResponse("/sample/trangngu-sample-translated.pdf", expectContentType("application/pdf"));
+  await assertResponse("/sample/trangngu-sample-original.png", expectContentType("image/png"));
+  await assertResponse("/sample/trangngu-sample-translated.png", expectContentType("image/png"));
+  await assertStatus("/api/admin/stats", 401);
+  console.log("Public shell, health, sample assets, and the locked admin boundary passed. Run a real PDF translation separately.");
 } catch (error) {
   console.error(`FAIL ${error instanceof Error ? error.message : String(error)}`);
   process.exit(1);

@@ -20,10 +20,12 @@ The Gemini free tier currently states that submitted content may be used to impr
 | Corrected block text | Final export | Export request only |
 | Document SHA-256 hash | Bind export to the reviewed source | Inside the 30-minute signed session, not a document database |
 | Salted requester hash | Daily abuse limits | Counter records only; no raw IP stored |
-| Job, page, and OCR counts | Quota and cost controls | Daily/monthly Firestore counter records |
+| Job, page, OCR, export, and error counts | Quota, reliability, and owner dashboard | Daily/monthly aggregate Firestore counter records |
 | Request ID, stage, duration, status class | Production diagnosis | Cloud logging retention configured by the project owner |
 
 The app does not require an account, save a document history, or request Google Drive, Gmail, or Calendar access in the MVP.
+
+The private owner dashboard reads aggregate counters only. It does not expose requester hashes or retain PDF names, document text, translations, correction content, IP addresses, or session tokens. A submitted dashboard access key remains in the current browser tab's memory and is not written to local storage or cookies.
 
 ## Logging rules
 

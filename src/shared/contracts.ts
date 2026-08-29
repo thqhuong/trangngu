@@ -95,3 +95,48 @@ export const publicConfigSchema = z.object({
 });
 
 export type PublicConfig = z.infer<typeof publicConfigSchema>;
+
+const adminMetricFields = {
+  jobsReceived: z.number().int().nonnegative(),
+  jobsCompleted: z.number().int().nonnegative(),
+  jobsFailed: z.number().int().nonnegative(),
+  pagesTranslated: z.number().int().nonnegative(),
+  ocrPages: z.number().int().nonnegative(),
+  exportsCompleted: z.number().int().nonnegative(),
+  exportsFailed: z.number().int().nonnegative(),
+  pagesExported: z.number().int().nonnegative(),
+  geminiQuotaErrors: z.number().int().nonnegative(),
+  providerErrors: z.number().int().nonnegative(),
+};
+
+export const adminMetricSchema = z.object({
+  date: z.string().date(),
+  ...adminMetricFields,
+});
+
+export const adminStatsSchema = z.object({
+  generatedAt: z.string().datetime(),
+  periodDays: z.number().int().min(1).max(31),
+  today: adminMetricSchema,
+  period: z.object(adminMetricFields),
+  daily: z.array(adminMetricSchema).min(1).max(31),
+  limits: z.object({
+    maxPagesPerJob: z.number().int().positive(),
+    dailyJobLimitPerRequester: z.number().int().positive(),
+    dailyPageLimitPerRequester: z.number().int().positive(),
+    monthlyOcrPageCap: z.number().int().positive(),
+    monthlyOcrPagesUsed: z.number().int().nonnegative(),
+  }),
+  gemini: z.object({
+    model: z.string().min(1),
+    observedCompletedJobs: z.number().int().nonnegative(),
+    quotaErrors: z.number().int().nonnegative(),
+    remainingQuota: z.null(),
+    quotaSource: z.literal("provider-console-required"),
+    quotaConsoleUrl: z.string().url(),
+  }),
+  privacy: z.literal("Aggregated counters only. No PDF names, document text, translations, IP addresses, or session tokens are stored in analytics."),
+});
+
+export type AdminMetric = z.infer<typeof adminMetricSchema>;
+export type AdminStats = z.infer<typeof adminStatsSchema>;

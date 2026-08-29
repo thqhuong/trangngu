@@ -32,6 +32,12 @@ export function hashIdentity(ip: string, salt: string): string {
   return createHmac("sha256", salt).update(ip).digest("hex");
 }
 
+export function secureStringEqual(received: string, expected: string): boolean {
+  const receivedDigest = createHash("sha256").update(received).digest();
+  const expectedDigest = createHash("sha256").update(expected).digest();
+  return timingSafeEqual(receivedDigest, expectedDigest);
+}
+
 export function signSession(payload: SessionPayload, secret: string): string {
   const compressed = deflateRawSync(Buffer.from(JSON.stringify(payload)), { level: 9 });
   const body = compressed.toString("base64url");

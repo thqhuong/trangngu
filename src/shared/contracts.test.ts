@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  adminStatsSchema,
   boundingBoxSchema,
   correctionMapSchema,
   languageCodeSchema,
@@ -43,5 +44,44 @@ describe("shared API contracts", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+
+  it("validates privacy-safe admin statistics", () => {
+    const metric = {
+      date: "2026-08-29",
+      jobsReceived: 2,
+      jobsCompleted: 1,
+      jobsFailed: 1,
+      pagesTranslated: 4,
+      ocrPages: 1,
+      exportsCompleted: 1,
+      exportsFailed: 0,
+      pagesExported: 4,
+      geminiQuotaErrors: 0,
+      providerErrors: 0,
+    };
+    expect(adminStatsSchema.parse({
+      generatedAt: "2026-08-29T09:00:00.000Z",
+      periodDays: 30,
+      today: metric,
+      period: Object.fromEntries(Object.entries(metric).filter(([key]) => key !== "date")),
+      daily: [metric],
+      limits: {
+        maxPagesPerJob: 15,
+        dailyJobLimitPerRequester: 3,
+        dailyPageLimitPerRequester: 45,
+        monthlyOcrPageCap: 900,
+        monthlyOcrPagesUsed: 12,
+      },
+      gemini: {
+        model: "gemini-test",
+        observedCompletedJobs: 1,
+        quotaErrors: 0,
+        remainingQuota: null,
+        quotaSource: "provider-console-required",
+        quotaConsoleUrl: "https://console.cloud.google.com/iam-admin/quotas",
+      },
+      privacy: "Aggregated counters only. No PDF names, document text, translations, IP addresses, or session tokens are stored in analytics.",
+    }).today.pagesTranslated).toBe(4);
   });
 });

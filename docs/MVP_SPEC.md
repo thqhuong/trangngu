@@ -20,6 +20,8 @@ Existing free translators often lose page structure, fail on scans, or return te
 
 The demo magic moment is a scanned page becoming Vietnamese in place while columns, table lines, images, and page geometry remain aligned in a before/after comparison.
 
+The homepage includes a pre-tested one-page sample so a visitor can drag a reveal line or switch to side-by-side mode before spending quota. The translated sample is reviewed Gemini output, not a browser-only mock.
+
 ## Limits and supported targets
 
 - PDF only
@@ -57,6 +59,7 @@ The app should flag content it cannot fit safely instead of silently damaging th
 - Type checking, linting, unit/integration tests, Playwright tests, and production build pass.
 - One real Gemini request and one real Document AI request pass locally and after authorized Cloud Run deployment.
 - The stable demo finishes in under three minutes without a mocked AI response.
+- The owner can inspect aggregate pages, jobs, exports, OCR allowance, failures, and observed Gemini quota errors without exposing document content.
 
 ## Current implementation status
 

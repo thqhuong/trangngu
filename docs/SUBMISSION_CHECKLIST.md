@@ -13,6 +13,8 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [ ] Invalid type, 25 MB, 15-page, encryption, quota, timeout, and provider errors are understandable.
 - [ ] Double submission is blocked.
 - [x] Desktop and mobile layouts pass.
+- [x] Homepage sample supports reveal and side-by-side comparison, keyboard input, and both PDF downloads.
+- [x] Admin dashboard exposes aggregate counters only and rejects unauthenticated requests.
 
 ## Engineering evidence
 
@@ -31,7 +33,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Active project is the dedicated TrangNgữ project, not Doc2Do.
 - [x] Budget alert is configured; owner understands it does not cap spending.
 - [x] Runtime identity is dedicated and least-privilege.
-- [x] Gemini key and signing values are in Secret Manager and absent from source/build arguments.
+- [x] Gemini key, signing values, and admin dashboard key are in Secret Manager and absent from source/build arguments.
 - [x] Document AI processor ID and `asia-southeast1` location are verified.
 - [x] Firestore contains counters only and access is server-side.
 - [x] Cloud Run service `trangngu` is public in `asia-southeast1`.
@@ -39,7 +41,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Latest ready revision receives 100% of traffic.
 - [x] `/api/health`, homepage, mobile/desktop, export, and real provider path pass against the public URL.
 - [x] Public URL: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [x] Verified revision and test date: `trangngu-00002-h2h` on 2026-08-29
+- [x] Verified revision and test date: `trangngu-00005-85v` on 2026-08-29
 
 ## Privacy and cost
 

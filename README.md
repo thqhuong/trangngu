@@ -11,11 +11,12 @@
 ## Live deployment
 
 - Public app: [https://trangngu-6m6au2eisq-as.a.run.app](https://trangngu-6m6au2eisq-as.a.run.app)
+- Private owner dashboard: [https://trangngu-6m6au2eisq-as.a.run.app/#/admin](https://trangngu-6m6au2eisq-as.a.run.app/#/admin)
 - Google Cloud project: `trangngu-ai-riser-2026` (separate from Doc2Do)
-- Cloud Run service/revision: `trangngu` / `trangngu-00002-h2h`, with 100% of traffic
+- Cloud Run service/revision: `trangngu` / `trangngu-00005-85v`, with 100% of traffic
 - Region and limits: `asia-southeast1`, minimum 0, maximum 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds
 - Providers: Enterprise Document OCR processor `e0a3a06f46f66a72` and free-tier `gemini-3.5-flash-lite`
-- Verification: public shell and health passed; 16 automated tests passed; 6 production Playwright tests passed across desktop Chromium and Pixel 7; real two-page translation/OCR/export passed; no error-severity Cloud Run logs remained
+- Verification: public shell, health, sample assets, and protected dashboard passed; 19 automated tests passed; 10 production Playwright checks passed across desktop Chromium and Pixel 7; the previously verified real two-page translation/OCR/export path remains unchanged; no error-severity entries were present for the final revision
 
 The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%-forecast thresholds. This is an alert, not a spending cap. The application additionally reserves at most 900 OCR pages per month.
 
@@ -27,6 +28,8 @@ The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%
 - Gemini translates identified text blocks on the server with structured, validated JSON.
 - A review workspace keeps blocks aligned with the source page and flags uncertain or overflowing text.
 - Export creates a fixed-layout PDF with a searchable translated text layer.
+- The homepage includes a rights-safe, interactive before/after PDF sample with reveal and side-by-side views.
+- A private owner dashboard at `/#/admin` reports aggregate jobs, translated pages, exports, OCR allowance, reliability, and observed Gemini quota errors.
 - No account required and no original document storage by TrangNgữ.
 - 12 target languages: Vietnamese, English, Simplified Chinese, Japanese, Korean, Thai, Indonesian, French, German, Spanish, Portuguese, and Hindi.
 
@@ -93,6 +96,7 @@ The interface and health endpoint can start without cloud credentials; developme
 | `DOCUMENT_AI_PROCESSOR_ID` | Yes for scans | none | Enterprise Document OCR processor ID |
 | `SESSION_SIGNING_SECRET` | Yes | none | At least 32 characters; signs short-lived review sessions |
 | `IP_HASH_SALT` | Yes | none | At least 16 characters; salts requester identifiers |
+| `ADMIN_DASHBOARD_TOKEN` | Yes for the admin dashboard | none | Server-only owner access key, at least 24 characters; keep it in Secret Manager |
 | `MAX_PDF_BYTES` | No | `26214400` | 25 MB upload limit |
 | `MAX_PAGES_PER_JOB` | No | `15` | Maximum pages in one PDF |
 | `DAILY_JOB_LIMIT` | No | `3` | Jobs per requester per UTC day |
@@ -133,7 +137,7 @@ Before calling the MVP complete, also test representative digital, scanned, and 
 
 ## Privacy and cost warning
 
-TrangNgữ is designed to process source files temporarily and not retain original PDFs or translated results. The planned persistent data is limited to salted, one-way requester usage counters in Firestore. Logs must exclude document text, translations, PDFs, secrets, and session tokens.
+TrangNgữ is designed to process source files temporarily and not retain original PDFs or translated results. Persistent data is limited to salted, one-way requester usage counters and daily aggregate operational counters in Firestore. The admin dashboard never stores filenames, document text, translations, raw IPs, or session tokens. Logs must exclude document text, translations, PDFs, secrets, and session tokens.
 
 The Gemini Developer API free tier currently states that submitted content may be used to improve Google products. **Do not upload confidential, personal, regulated, or otherwise sensitive documents.** Terms, quotas, model availability, and pricing can change; check the [official Gemini pricing page](https://ai.google.dev/gemini-api/docs/pricing) immediately before a public launch. See [Privacy](docs/PRIVACY.md).
 
@@ -155,6 +159,8 @@ PLAYWRIGHT_BASE_URL=https://YOUR_CLOUD_RUN_URL npm run test:e2e
 ```
 
 Then translate the pre-tested scan fixture through the real production Gemini and Document AI path, download and inspect the result, confirm 100% traffic on the latest revision, and check sanitized Cloud Run logs.
+
+The owner dashboard is available at `https://YOUR_CLOUD_RUN_URL/#/admin`. Its access key is loaded into Cloud Run from `trangngu-admin-dashboard-token`; the browser keeps a submitted key only in the current tab's memory. Gemini's Developer API does not expose an authoritative remaining free-tier quota value, so the dashboard reports the configured model, observed successes and quota errors, and links to the Google quota console instead of inventing a remaining count.
 
 ## Demo and submission
 

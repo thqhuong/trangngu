@@ -6,9 +6,11 @@ import { exportTranslatedPdf, inspectPdf } from "./pdf.js";
 import { createOcrProvider, createTranslationProvider, type OcrProvider, type TranslationProvider } from "./providers.js";
 import { createQuotaStore, type QuotaStore } from "./quota.js";
 import { createRuntimeSecret, hashIdentity, sha256, signSession, verifySession, type SessionPayload } from "./security.js";
+import { createTelemetryStore, type TelemetryStore } from "./telemetry.js";
 
 export interface BackendServices {
   quota: QuotaStore;
+  telemetry: TelemetryStore;
   translator?: TranslationProvider;
   ocr?: OcrProvider;
   now: () => Date;
@@ -20,6 +22,7 @@ export function createBackendServices(config: AppConfig, overrides: Partial<Back
   const allowRuntimeSecrets = config.nodeEnv !== "production";
   return {
     quota: overrides.quota ?? createQuotaStore(config),
+    telemetry: overrides.telemetry ?? createTelemetryStore(config),
     translator: overrides.translator,
     ocr: overrides.ocr,
     now: overrides.now ?? (() => new Date()),

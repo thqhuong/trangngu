@@ -1,6 +1,8 @@
 import {
+  adminStatsSchema,
   progressEventSchema,
   publicConfigSchema,
+  type AdminStats,
   type LanguageCode,
   type ProgressEvent,
   type PublicConfig,
@@ -22,14 +24,15 @@ async function readError(response: Response): Promise<ApiError> {
   try {
     const body = (await response.json()) as {
       code?: string;
-      error?: string;
+      error?: string | { code?: string; message?: string; requestId?: string };
       message?: string;
       requestId?: string;
     };
+    const nested = typeof body.error === "object" ? body.error : undefined;
     return new ApiError(
-      body.message ?? body.error ?? `Request failed (${response.status})`,
-      body.code ?? "REQUEST_FAILED",
-      body.requestId,
+      body.message ?? nested?.message ?? (typeof body.error === "string" ? body.error : undefined) ?? `Request failed (${response.status})`,
+      body.code ?? nested?.code ?? "REQUEST_FAILED",
+      body.requestId ?? nested?.requestId,
     );
   } catch {
     return new ApiError(`Request failed (${response.status})`);
@@ -40,6 +43,16 @@ export async function loadPublicConfig(signal?: AbortSignal): Promise<PublicConf
   const response = await fetch("/api/config", { signal });
   if (!response.ok) throw await readError(response);
   return publicConfigSchema.parse(await response.json());
+}
+
+export async function loadAdminStats(token: string, signal?: AbortSignal): Promise<AdminStats> {
+  const response = await fetch("/api/admin/stats", {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: "no-store",
+    signal,
+  });
+  if (!response.ok) throw await readError(response);
+  return adminStatsSchema.parse(await response.json());
 }
 
 function parseLine(line: string): ProgressEvent {

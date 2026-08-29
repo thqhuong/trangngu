@@ -12,9 +12,11 @@ All notable changes to TrangNgữ are recorded here.
 - Side-by-side layout review, optional block corrections, and searchable fixed-layout PDF export.
 - Firestore-backed daily and monthly usage controls without saving uploaded documents.
 - A single-container React and Fastify deployment for Google Cloud Run.
+- A private, Secret Manager-protected owner dashboard for privacy-safe aggregate usage, reliability, OCR allowance, and observed Gemini quota signals.
+- A downloadable one-page sample and accessible drag-to-reveal/side-by-side homepage comparison using reviewed Gemini output.
 
 ### Verified
 
-- Deployed `trangngu-00002-h2h` publicly in `asia-southeast1` with 100% traffic.
+- Deployed `trangngu-00005-85v` publicly in `asia-southeast1` with 100% traffic.
 - Completed the two-page mixed demo through real OCR, translation, review, and export.
 - Passed the local quality gate and desktop/mobile production browser checks.

@@ -21,7 +21,7 @@ Fastify on Cloud Run
           |
           `-- translated PDF response
 
-Firestore <---- salted usage counters only
+Firestore <---- salted usage counters + aggregate daily metrics only
 Secret Manager -> server credentials only
 ```
 
@@ -55,6 +55,8 @@ The exporter rasterizes each source page, covers recognized text regions conserv
 - Source PDFs, text, translations, session tokens, and secrets are excluded from logs.
 - Temporary files use per-request directories and are removed in a `finally` path.
 - Firestore stores daily/monthly counters, not PDFs or translated content.
+- The private admin endpoint reads aggregate daily operational metrics; it never returns requester hashes or document-level records.
+- The dashboard bearer token is compared in constant time and remains only in the page's in-memory React state.
 - Raw IP addresses are salted and hashed before counter storage.
 - The browser cannot modify geometry through the correction map; it can replace text only for signed block IDs.
 - Timeouts and one transient retry bound provider work. Validation, safety, and quota failures are not retried.
@@ -67,6 +69,7 @@ The exporter rasterizes each source page, covers recognized text regions conserv
 - Cloud Run scales from zero to at most two 1-CPU, 2-GiB instances with concurrency two.
 - Request identifiers connect browser errors to sanitized structured logs.
 - Embedded text avoids OCR cost. Small translation batches limit Gemini output and isolate retry failures.
+- Telemetry writes are best-effort, aggregate-only, and cannot fail a user's translation or export.
 
 Application counters and budget alerts are guardrails, not provider billing caps. Provider quotas and pricing must be checked before launch.
 
@@ -86,6 +89,7 @@ Application counters and budget alerts are guardrails, not provider billing caps
 | `GET /api/config` | Implemented | Returns non-secret limits, languages, and privacy notice |
 | `POST /api/translations` | Implemented and production-verified | Validates, extracts/OCRs, translates, and streams review data |
 | `POST /api/exports` | Implemented and production-verified | Verifies source/session/corrections and returns a PDF |
+| `GET /api/admin/stats` | Implemented | Returns owner-only aggregate usage, reliability, allowance, and observed provider signals |
 
 The shared contracts define normalized boxes, approximate text style, translation blocks, page layouts, sessions, correction maps, progress events, and public configuration. API documentation must be updated if implementation changes those schemas.
 

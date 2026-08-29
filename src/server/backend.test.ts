@@ -8,6 +8,7 @@ import { inspectPdf } from "./pdf.js";
 import type { TranslationProvider } from "./providers.js";
 import { MemoryQuotaStore } from "./quota.js";
 import { sha256, signSession, verifySession, type SessionPayload } from "./security.js";
+import { MemoryTelemetryStore } from "./telemetry.js";
 import { createBackendServices, exportPdf, translatePdf } from "./workflow.js";
 
 const config = loadConfig({
@@ -149,5 +150,37 @@ describe("security and quotas", () => {
     await expect(quota.reserveDaily("user", 1)).rejects.toMatchObject({ code: "DAILY_JOB_LIMIT" });
     await quota.reserveOcr(2);
     await expect(quota.reserveOcr(1)).rejects.toMatchObject({ code: "OCR_CAP_REACHED" });
+  });
+
+  it("protects aggregated admin statistics without exposing document data", async () => {
+    const adminConfig = loadConfig({
+      NODE_ENV: "test",
+      SESSION_SIGNING_SECRET: "s".repeat(32),
+      IP_HASH_SALT: "i".repeat(16),
+      ADMIN_DASHBOARD_TOKEN: "admin-access-key-that-is-long-enough",
+      MONTHLY_OCR_PAGE_CAP: "900",
+    });
+    const telemetry = new MemoryTelemetryStore();
+    const quota = new MemoryQuotaStore(adminConfig);
+    await telemetry.record({ jobsReceived: 3, jobsCompleted: 2, jobsFailed: 1, pagesTranslated: 7, geminiQuotaErrors: 1 });
+    await quota.reserveOcr(4);
+    const app = await buildApp(adminConfig, { translator, telemetry, quota });
+
+    const unauthorized = await app.inject({ method: "GET", url: "/api/admin/stats" });
+    expect(unauthorized.statusCode).toBe(401);
+
+    const response = await app.inject({
+      method: "GET",
+      url: "/api/admin/stats",
+      headers: { authorization: "Bearer admin-access-key-that-is-long-enough" },
+    });
+    expect(response.statusCode).toBe(200);
+    expect(response.json()).toMatchObject({
+      today: { jobsReceived: 3, jobsCompleted: 2, pagesTranslated: 7 },
+      limits: { monthlyOcrPageCap: 900, monthlyOcrPagesUsed: 4 },
+      gemini: { remainingQuota: null, quotaErrors: 1 },
+    });
+    expect(response.body).not.toContain("source.pdf");
+    await app.close();
   });
 });

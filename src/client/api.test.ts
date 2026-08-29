@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { ApiError, exportTranslation, streamTranslation } from "./api";
+import { ApiError, exportTranslation, loadAdminStats, streamTranslation } from "./api";
 
 const readyEvent = {
   type: "ready",
@@ -90,5 +90,28 @@ describe("exportTranslation", () => {
 
     expect(result.fileName).toBe("Tài-liệu-vi.pdf");
     expect(result.blob.size).toBeGreaterThan(0);
+  });
+});
+
+describe("loadAdminStats", () => {
+  it("sends the key in memory and validates aggregate counters", async () => {
+    const metric = {
+      date: "2026-08-29", jobsReceived: 1, jobsCompleted: 1, jobsFailed: 0, pagesTranslated: 4,
+      ocrPages: 1, exportsCompleted: 1, exportsFailed: 0, pagesExported: 4, geminiQuotaErrors: 0, providerErrors: 0,
+    };
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(JSON.stringify({
+      generatedAt: "2026-08-29T09:00:00.000Z", periodDays: 30, today: metric, period: { ...metric, date: undefined }, daily: [metric],
+      limits: { maxPagesPerJob: 15, dailyJobLimitPerRequester: 3, dailyPageLimitPerRequester: 45, monthlyOcrPageCap: 900, monthlyOcrPagesUsed: 2 },
+      gemini: { model: "gemini-test", observedCompletedJobs: 1, quotaErrors: 0, remainingQuota: null, quotaSource: "provider-console-required", quotaConsoleUrl: "https://console.cloud.google.com/iam-admin/quotas" },
+      privacy: "Aggregated counters only. No PDF names, document text, translations, IP addresses, or session tokens are stored in analytics.",
+    }), { status: 200, headers: { "content-type": "application/json" } }));
+
+    const stats = await loadAdminStats("admin-access-key-that-is-long-enough");
+
+    expect(stats.today.pagesTranslated).toBe(4);
+    expect(fetchMock).toHaveBeenCalledWith("/api/admin/stats", expect.objectContaining({
+      headers: { Authorization: "Bearer admin-access-key-that-is-long-enough" },
+      cache: "no-store",
+    }));
   });
 });

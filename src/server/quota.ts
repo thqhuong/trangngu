@@ -5,6 +5,7 @@ import type { AppConfig } from "./config.js";
 export interface QuotaStore {
   reserveDaily(identity: string, pages: number, now?: Date): Promise<void>;
   reserveOcr(pages: number, now?: Date): Promise<void>;
+  getMonthlyOcrUsage(now?: Date): Promise<number>;
 }
 
 interface DailyUsage { jobs: number; pages: number }
@@ -47,6 +48,10 @@ export class MemoryQuotaStore implements QuotaStore {
       );
     }
     this.monthly.set(key, used + pages);
+  }
+
+  async getMonthlyOcrUsage(now = new Date()): Promise<number> {
+    return this.monthly.get(monthKey(now)) ?? 0;
   }
 }
 
@@ -102,6 +107,11 @@ export class FirestoreQuotaStore implements QuotaStore {
         updatedAt: FieldValue.serverTimestamp(),
       });
     });
+  }
+
+  async getMonthlyOcrUsage(now = new Date()): Promise<number> {
+    const snapshot = await this.firestore.collection("trangnguUsageMonthly").doc(`${monthKey(now)}_ocr`).get();
+    return Math.max(0, Math.trunc(Number(snapshot.get("pages") ?? 0)));
   }
 }
 

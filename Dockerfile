@@ -6,6 +6,7 @@ RUN npm ci
 FROM dependencies AS build
 COPY tsconfig.json tsconfig.server.json vite.config.ts vitest.config.ts index.html ./
 COPY src ./src
+COPY public ./public
 RUN npm run build
 
 FROM node:22-bookworm-slim AS production-dependencies

@@ -6,8 +6,10 @@ import {
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
 import type { LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
 import { exportTranslation, loadPublicConfig, streamTranslation } from "./api";
+import { AdminDashboard } from "./AdminDashboard";
 import { copy, DEFAULT_CONFIG, formatBytes, getFriendlyError, type Locale } from "./i18n";
 import { PdfCanvas } from "./PdfCanvas";
+import { SampleComparison } from "./SampleComparison";
 import { usePdf } from "./usePdf";
 
 type Phase = "upload" | "processing" | "review" | "error";
@@ -44,7 +46,7 @@ function PagePreview({ document, pageNumber, blocks, corrections, activeId, onSe
   </div>;
 }
 
-export function App() {
+function TranslatorApp() {
   const [locale, setLocale] = useState<Locale>("en");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [phase, setPhase] = useState<Phase>("upload");
@@ -185,6 +187,7 @@ export function App() {
             <article><span className="step-number">02</span><Sparkles size={25} /><h3>{t.stepTwo}</h3><p>{t.stepTwoBody}</p></article>
             <article><span className="step-number">03</span><LayoutTemplate size={25} /><h3>{t.stepThree}</h3><p>{t.stepThreeBody}</p></article></div>
         </section>
+        <SampleComparison locale={locale} />
       </>}
 
       {phase === "processing" && <section className="state-page processing-page" aria-labelledby="processing-title"><div className="state-card">
@@ -241,7 +244,20 @@ export function App() {
         </aside></div>
       </section>}
     </main>
-    <footer className="site-footer"><span><ShieldCheck size={15} /> {t.footerPrivacy}</span><span>{t.footerTech}</span></footer>
+    <footer className="site-footer"><span><ShieldCheck size={15} /> {t.footerPrivacy}</span><span className="footer-links"><span>{t.footerTech}</span><a href="#/admin"><LockKeyhole size={13} /> Admin</a></span></footer>
     <div className="sr-live" aria-live="polite" aria-atomic="true">{phase === "processing" ? `${t[progress.stage]} ${Math.round(progress.value)}%` : exportNotice?.text}</div>
   </div>;
+}
+
+export function App() {
+  const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#/admin");
+  useEffect(() => {
+    const onHashChange = () => setAdminRoute(window.location.hash === "#/admin");
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
+  if (adminRoute) {
+    return <AdminDashboard onBack={() => { window.location.hash = ""; }} />;
+  }
+  return <TranslatorApp />;
 }

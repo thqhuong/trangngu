@@ -344,11 +344,15 @@ export async function exportTranslatedPdf(
         const boxHeight = block.box.height * pageInfo.height;
         const y = pageInfo.height - top - boxHeight;
         const background = sampleBackground(raw, block);
+        const erasePaddingX = Math.max(2.5, Math.min(12, block.style.fontSize * 0.26));
+        const erasePaddingY = Math.max(3, Math.min(12, block.style.fontSize * 0.42));
+        const eraseX = Math.max(0, x - erasePaddingX);
+        const eraseY = Math.max(0, y - erasePaddingY);
         page.drawRectangle({
-          x: Math.max(0, x - 1),
-          y: Math.max(0, y - 1),
-          width: Math.min(pageInfo.width - x + 1, boxWidth + 2),
-          height: Math.min(pageInfo.height - y + 1, boxHeight + 2),
+          x: eraseX,
+          y: eraseY,
+          width: Math.min(pageInfo.width - eraseX, boxWidth + erasePaddingX * 2),
+          height: Math.min(pageInfo.height - eraseY, boxHeight + erasePaddingY * 2),
           color: rgb(background.r / 255, background.g / 255, background.b / 255),
         });
         const fitted = fitText(translatedText, font, block.style.fontSize, boxWidth, boxHeight);

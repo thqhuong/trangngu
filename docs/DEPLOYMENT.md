@@ -8,19 +8,19 @@ This guide builds and deploys the single TrangNgữ container to a public Cloud 
 |---|---|
 | Project | `trangngu-ai-riser-2026`, separate from Doc2Do |
 | Public URL | `https://trangngu-6m6au2eisq-as.a.run.app` |
-| Service / revision | `trangngu` / `trangngu-00002-h2h` |
+| Service / revision | `trangngu` / `trangngu-00005-85v` |
 | Traffic | 100% to the latest ready revision |
-| Cloud Build | `b2e2d27a-e10e-41f6-8759-d568e73f7b1f` |
+| Cloud Build | `8ffe8fdb-bc3b-47e9-8409-8ee41ea0205d` |
 | Gemini | `gemini-3.5-flash-lite`, API-restricted key in an unbilled Gemini project |
 | OCR | Enterprise Document OCR `e0a3a06f46f66a72` in `asia-southeast1` |
-| Firestore | Native mode, `asia-southeast1`, free-tier database; quota counters only |
+| Firestore | Native mode, `asia-southeast1`, free-tier database; salted quota counters and aggregate daily metrics only |
 | Runtime | min 0, max 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds |
 | Budget warning | ₫100,000/month; 50%, 90%, 100%, and 90%-forecast alerts |
-| Automated verification | 16 tests and production build passed; 6 desktop/mobile Playwright checks passed |
-| Real provider verification | Two-page mixed PDF: 26 digital-page blocks and 19 scanned-page OCR blocks; Gemini translation and uncorrected PDF export passed |
+| Automated verification | 19 tests and production build passed; 10 desktop/mobile Playwright checks passed |
+| Real provider verification | Earlier production acceptance: two-page mixed PDF with 26 digital-page blocks and 19 scanned-page OCR blocks; Gemini translation and uncorrected PDF export passed. The final dashboard/sample revision did not bypass the already-reached daily app limit to repeat provider work. |
 | Logs | No error-severity Cloud Run entries after final verification |
 
-The final smoke-test quota records were deleted after exact count verification so the public demo allowance starts unused. Uploaded PDFs, extracted text, translations, API keys, and session tokens were not written to Firestore or logs.
+The final smoke test verified the public shell, health endpoint, four sample assets, protected dashboard boundary, authenticated aggregate response, and desktop/mobile browser behavior. Uploaded PDFs, extracted text, translations, API keys, and session tokens were not written to Firestore or application logs.
 
 ## Prerequisites and approval gate
 
@@ -110,7 +110,7 @@ These roles allow OCR calls and Firestore counter access. Do not grant Owner or 
 Create the empty secret resources once:
 
 ```bash
-for name in trangngu-gemini-api-key trangngu-session-signing-secret trangngu-ip-hash-salt; do
+for name in trangngu-gemini-api-key trangngu-session-signing-secret trangngu-ip-hash-salt trangngu-admin-dashboard-token; do
   gcloud secrets describe "$name" >/dev/null 2>&1 || \
     gcloud secrets create "$name" --replication-policy=automatic
 done
@@ -132,12 +132,14 @@ openssl rand -base64 48 | \
   gcloud secrets versions add trangngu-session-signing-secret --data-file=-
 openssl rand -base64 32 | \
   gcloud secrets versions add trangngu-ip-hash-salt --data-file=-
+openssl rand -base64 32 | tr -d '\n' | \
+  gcloud secrets versions add trangngu-admin-dashboard-token --data-file=-
 ```
 
-Grant the runtime identity access to these three secrets only:
+Save the dashboard token in a password manager at creation time; Secret Manager will not show it in the app. Grant the runtime identity access to these four secrets only:
 
 ```bash
-for name in trangngu-gemini-api-key trangngu-session-signing-secret trangngu-ip-hash-salt; do
+for name in trangngu-gemini-api-key trangngu-session-signing-secret trangngu-ip-hash-salt trangngu-admin-dashboard-token; do
   gcloud secrets add-iam-policy-binding "$name" \
     --member='serviceAccount:trangngu-runtime@YOUR_PROJECT_ID.iam.gserviceaccount.com' \
     --role='roles/secretmanager.secretAccessor'
@@ -211,6 +213,8 @@ node scripts/smoke-production.mjs "$TRANGNGU_URL"
 PLAYWRIGHT_BASE_URL="$TRANGNGU_URL" npm run test:e2e
 ```
 
+Also confirm `/#/admin` rejects a missing or wrong access key, accepts the Secret Manager value over HTTPS, and reports only aggregate counters. A submitted key must not appear in local storage, cookies, page source, logs, or screenshots. Gemini does not provide an authoritative remaining free-tier quota through this application API; verify that the dashboard labels this limitation and links to the provider quota console.
+
 Then perform the acceptance test that scripts cannot replace:
 
 1. Open the real URL on desktop and a mobile-sized screen.
@@ -221,6 +225,7 @@ Then perform the acceptance test that scripts cannot replace:
 6. Repeat one invalid-input case and one double-submission attempt.
 7. Confirm the latest ready revision receives 100% of traffic.
 8. Inspect Cloud Run logs by request ID. Confirm no document text, token, or secret appears and no provider errors remain.
+9. Verify the homepage sample loads, the comparison line responds to pointer and keyboard input, both PDF downloads open, and the private dashboard works.
 
 Record the URL, revision, test date, model, processor, desktop/mobile result, real translation result, and expected cost risk in the submission notes. If any step fails, report the failure; do not claim deployment completion.
 
