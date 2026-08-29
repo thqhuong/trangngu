@@ -1,6 +1,6 @@
 # GitHub publishing guide
 
-Use this checklist when creating the public repository. No remote repository was configured when this guide was written, so none of these external settings is claimed as complete.
+The public repository is available at <https://github.com/thqhuong/trangngu>. Use this guide to keep its metadata and settings synchronized with the project.
 
 ## Recommended repository metadata
 

@@ -57,7 +57,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [ ] YouTube demo is public: `[PUBLIC_YOUTUBE_URL]`
 - [ ] Social post is published: `[PUBLIC_SOCIAL_POST_URL]`
 - [x] Cloud Run application is public: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [ ] GitHub repository is public: `[PUBLIC_GITHUB_URL]`
+- [x] GitHub repository is public: https://github.com/thqhuong/trangngu
 - [x] README setup, architecture, environment, tests, deployment, privacy, cost, and demo instructions match the code.
 - [ ] Submission form product name, description, technologies, and links match the deployed product.
 

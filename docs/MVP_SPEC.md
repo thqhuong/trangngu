@@ -60,7 +60,7 @@ The app should flag content it cannot fit safely instead of silently damaging th
 
 ## Current implementation status
 
-The repository implements the upload/review UI, API routes, PDF inspection/export, Gemini and Document AI adapters, signed sessions, Firestore/memory quota stores, and automated tests. The public Cloud Run deployment, mixed digital/scanned fixture, real Gemini translation, Document AI OCR, and uncorrected PDF export were production-verified on 2026-08-29. GitHub publishing, the public AI Studio share link, YouTube demo, and social post remain submission tasks.
+The repository implements the upload/review UI, API routes, PDF inspection/export, Gemini and Document AI adapters, signed sessions, Firestore/memory quota stores, and automated tests. The public Cloud Run deployment, mixed digital/scanned fixture, real Gemini translation, Document AI OCR, uncorrected PDF export, and public MIT-licensed GitHub repository were verified on 2026-08-29. The public AI Studio share link, YouTube demo, and social post remain submission tasks.
 
 ## Related
 

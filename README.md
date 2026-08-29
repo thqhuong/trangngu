@@ -6,7 +6,7 @@
 
 [Open the live app](https://trangngu-6m6au2eisq-as.a.run.app) · [Try the demo PDF](outputs/trangngu-demo-flood-guide.pdf) · [Read the architecture](docs/ARCHITECTURE.md) · [View on GitHub](https://github.com/thqhuong/trangngu)
 
-> **Build status (2026-08-29):** the MVP is deployed and verified on Google Cloud Run. The mixed digital/scanned demo PDF completed the real Document AI + Gemini workflow and exported successfully without required corrections. Google AI Studio sharing, GitHub publishing, YouTube, and the social post are still submission tasks and are not claimed as complete.
+> **Build status (2026-08-29):** the MVP is deployed and verified on Google Cloud Run, and the source is published on GitHub under the MIT License. The mixed digital/scanned demo PDF completed the real Document AI + Gemini workflow and exported successfully without required corrections. Google AI Studio sharing, YouTube, and the social post are still submission tasks and are not claimed as complete.
 
 ## Live deployment
 
