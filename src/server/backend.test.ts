@@ -107,6 +107,23 @@ describe("PDF workflow", () => {
     const inspection = await inspectPdf(result.buffer, config);
     expect(inspection.embeddedPages.flatMap((page) => page.blocks).map((block) => block.originalText).join(" ")).toContain("Xin chao");
   }, 30_000);
+
+  it("fits a compact translation into a tight source block", async () => {
+    const document = await PDFDocument.create();
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    const page = document.addPage([240, 120]);
+    page.drawText("Pack essentials and monitor official updates.", { x: 20, y: 70, size: 8, font });
+    const source = Buffer.from(await document.save());
+    const compactTranslator: TranslationProvider = {
+      async translate(blocks) {
+        return new Map(blocks.map((block) => [block.id, "Mang do thiet yeu; theo doi thong bao chinh thuc."]));
+      },
+    };
+    const services = createBackendServices(config, { translator: compactTranslator });
+    const session = await translatePdf({ file: source, fileName: "tight.pdf", targetLanguage: "vi", requesterIp: "127.0.0.3" }, config, services, () => undefined);
+    const result = await exportPdf({ file: source, sessionToken: session.sessionToken, corrections: {} }, config, services);
+    expect(result.buffer.subarray(0, 5).toString()).toBe("%PDF-");
+  }, 30_000);
 });
 
 describe("security and quotas", () => {

@@ -250,8 +250,8 @@ interface FittedText { lines: string[]; size: number; lineHeight: number }
 
 function fitText(text: string, font: PDFFont, requestedSize: number, width: number, height: number): FittedText | undefined {
   const initial = Math.min(requestedSize, height / 1.15);
-  const minimum = Math.max(4, initial * 0.7);
-  for (let size = initial; size >= minimum; size -= 0.5) {
+  const minimum = Math.max(3.5, initial * 0.5);
+  for (let size = initial; size >= minimum; size -= 0.25) {
     const lines = wrapText(text, font, size, width);
     const lineHeight = size * 1.15;
     if (lines.length * lineHeight <= height + 0.01) return { lines, size, lineHeight };

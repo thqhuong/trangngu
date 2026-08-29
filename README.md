@@ -2,7 +2,18 @@
 
 **Translate the words, keep the page.** TrangNgữ is a layout-preserving PDF translator for digital and scanned documents. It is designed first for Vietnamese students, educators, nonprofits, and small teams who need useful translations without rebuilding every page by hand.
 
-> **Build status:** the local MVP is implemented for AI Riser Vietnam 2026, including the React/Fastify workflow, PDF inspection/export, provider adapters, structured validation, quotas, and automated tests. Real Gemini and Document AI calls, Google Cloud resources, and a public deployment remain unverified; no live integration or deployment is claimed.
+> **Build status (2026-08-29):** the MVP is deployed and verified on Google Cloud Run. The mixed digital/scanned demo PDF completed the real Document AI + Gemini workflow and exported successfully without required corrections. Google AI Studio sharing, GitHub publishing, YouTube, and the social post are still submission tasks and are not claimed as complete.
+
+## Live deployment
+
+- Public app: [https://trangngu-6m6au2eisq-as.a.run.app](https://trangngu-6m6au2eisq-as.a.run.app)
+- Google Cloud project: `trangngu-ai-riser-2026` (separate from Doc2Do)
+- Cloud Run service/revision: `trangngu` / `trangngu-00002-h2h`, with 100% of traffic
+- Region and limits: `asia-southeast1`, minimum 0, maximum 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds
+- Providers: Enterprise Document OCR processor `e0a3a06f46f66a72` and free-tier `gemini-3.5-flash-lite`
+- Verification: public shell and health passed; 16 automated tests passed; 6 production Playwright tests passed across desktop Chromium and Pixel 7; real two-page translation/OCR/export passed; no error-severity Cloud Run logs remained
+
+The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%-forecast thresholds. This is an alert, not a spending cap. The application additionally reserves at most 900 OCR pages per month.
 
 ## MVP at a glance
 
@@ -120,7 +131,7 @@ Document AI currently lists the first 1,000 Enterprise OCR pages per month at no
 
 ## Cloud Run deployment
 
-Deployment is intentionally not automatic. Before running any command, confirm the active project is the dedicated TrangNgữ project, not an existing application project. Enabling APIs, creating resources, and attaching billing require the project owner's approval.
+Deployment is manually controlled. Before running any command, confirm the active project is the dedicated TrangNgữ project, not an existing application project. Enabling APIs, creating resources, and attaching billing require the project owner's approval.
 
 The target service is `trangngu` in `asia-southeast1`: public access, minimum 0 instances, maximum 2, 1 CPU, 2 GiB memory, concurrency 2, and a 600-second request timeout. Secrets come from Secret Manager. The runtime identity is a dedicated least-privilege service account.
 

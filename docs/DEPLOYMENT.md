@@ -1,6 +1,26 @@
 # How to deploy TrangNgữ to Cloud Run
 
-This guide builds and deploys the single TrangNgữ container to a public Cloud Run service in `asia-southeast1`. It does not prove a deployment has happened. Record real values and test results only after every verification step passes.
+This guide builds and deploys the single TrangNgữ container to a public Cloud Run service in `asia-southeast1`. The record below documents the revision verified on 2026-08-29; repeating the guide does not prove a later revision until the verification steps pass again.
+
+## Verified deployment record
+
+| Item | Verified value |
+|---|---|
+| Project | `trangngu-ai-riser-2026`, separate from Doc2Do |
+| Public URL | `https://trangngu-6m6au2eisq-as.a.run.app` |
+| Service / revision | `trangngu` / `trangngu-00002-h2h` |
+| Traffic | 100% to the latest ready revision |
+| Cloud Build | `b2e2d27a-e10e-41f6-8759-d568e73f7b1f` |
+| Gemini | `gemini-3.5-flash-lite`, API-restricted key in an unbilled Gemini project |
+| OCR | Enterprise Document OCR `e0a3a06f46f66a72` in `asia-southeast1` |
+| Firestore | Native mode, `asia-southeast1`, free-tier database; quota counters only |
+| Runtime | min 0, max 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds |
+| Budget warning | ₫100,000/month; 50%, 90%, 100%, and 90%-forecast alerts |
+| Automated verification | 16 tests and production build passed; 6 desktop/mobile Playwright checks passed |
+| Real provider verification | Two-page mixed PDF: 26 digital-page blocks and 19 scanned-page OCR blocks; Gemini translation and uncorrected PDF export passed |
+| Logs | No error-severity Cloud Run entries after final verification |
+
+The final smoke-test quota records were deleted after exact count verification so the public demo allowance starts unused. Uploaded PDFs, extracted text, translations, API keys, and session tokens were not written to Firestore or logs.
 
 ## Prerequisites and approval gate
 
@@ -22,7 +42,7 @@ Stop if any value identifies the wrong project. Then set the intended project ex
 gcloud config set project YOUR_PROJECT_ID
 ```
 
-In Google Cloud Console, open **Billing > Budgets & alerts**, create a small monthly budget for this project, and add low threshold notifications. Do not describe this as a spending cap.
+Create a small project-scoped monthly warning budget and low threshold notifications with Cloud Console or `gcloud billing budgets create`. Do not describe this as a spending cap. The verified deployment uses ₫100,000/month with 50%, 90%, 100%, and 90%-forecast thresholds.
 
 ## 2. Enable approved services
 
@@ -128,10 +148,13 @@ Never run `gcloud secrets versions access` during a screen recording or paste se
 
 ## 6. Configure the build identity
 
-Find the service account used by your Cloud Build configuration. Depending on project policy, this may be the legacy Cloud Build account or a user-specified account. Grant only the permissions needed to push the image, deploy Cloud Run, and attach the runtime identity:
+The verified deployment uses the dedicated `trangngu-build@YOUR_PROJECT_ID.iam.gserviceaccount.com` account. Grant only the permissions needed to read the Cloud Build source object, push the image, deploy Cloud Run, write build logs, consume enabled APIs, and attach the runtime identity:
 
 - Artifact Registry Writer (`roles/artifactregistry.writer`)
 - Cloud Run Admin (`roles/run.admin`), or a narrower deployment role if your organization provides one
+- Logs Writer (`roles/logging.logWriter`)
+- Service Usage Consumer (`roles/serviceusage.serviceUsageConsumer`)
+- Storage Object Viewer (`roles/storage.objectViewer`) on the project Cloud Build source bucket only
 - Service Account User (`roles/iam.serviceAccountUser`) on `trangngu-runtime`
 
 Do not grant the build identity access to secret payloads; Cloud Run references secret versions at deployment and the runtime service account reads them.
@@ -153,6 +176,7 @@ Submit the checked-in Cloud Build pipeline with the real processor ID:
 ```bash
 gcloud builds submit \
   --config=cloudbuild.yaml \
+  --service-account=projects/YOUR_PROJECT_ID/serviceAccounts/trangngu-build@YOUR_PROJECT_ID.iam.gserviceaccount.com \
   --substitutions=_DOCUMENT_AI_PROCESSOR_ID=YOUR_PROCESSOR_ID,_GEMINI_MODEL=YOUR_VERIFIED_FREE_TIER_MODEL \
   .
 ```
