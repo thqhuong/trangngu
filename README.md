@@ -4,7 +4,7 @@
 
 **Translate the words, keep the page.** TrangNgữ is a layout-preserving PDF translator for digital and scanned documents. It is designed first for Vietnamese students, educators, nonprofits, and small teams who need useful translations without rebuilding every page by hand.
 
-[Open the live app](https://trangngu-6m6au2eisq-as.a.run.app) · [Try the demo PDF](outputs/trangngu-demo-flood-guide.pdf) · [Read the architecture](docs/ARCHITECTURE.md)
+[Open the live app](https://trangngu-6m6au2eisq-as.a.run.app) · [Try the demo PDF](outputs/trangngu-demo-flood-guide.pdf) · [Read the architecture](docs/ARCHITECTURE.md) · [View on GitHub](https://github.com/thqhuong/trangngu)
 
 > **Build status (2026-08-29):** the MVP is deployed and verified on Google Cloud Run. The mixed digital/scanned demo PDF completed the real Document AI + Gemini workflow and exported successfully without required corrections. Google AI Studio sharing, GitHub publishing, YouTube, and the social post are still submission tasks and are not claimed as complete.
 
@@ -179,4 +179,4 @@ The live demo should remain under three minutes: state the problem, upload the t
 
 ## License
 
-No license has been selected yet. Add one before publishing the repository publicly.
+MIT. See [LICENSE](LICENSE).

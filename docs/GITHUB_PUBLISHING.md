@@ -10,7 +10,7 @@ Use this checklist when creating the public repository. No remote repository was
 - **Topics:** `gemini-api`, `document-ai`, `cloud-run`, `pdf-translation`, `ocr`, `vietnam`, `react`, `typescript`
 - **Social preview:** upload `public/og.png`
 
-Keep the repository public for the competition only after the secret scan passes and a license decision is made. The current repository intentionally has no license.
+Keep the repository public for the competition only after the secret scan passes. TrangNgữ uses the MIT License.
 
 ## Repository settings
 
@@ -25,13 +25,12 @@ The checked-in CI workflow does not use provider credentials. It exercises the d
 
 ## Publication sequence
 
-1. Choose and add the license.
-2. Run `npm run check` and `npm run test:e2e` in an unrestricted local environment.
-3. Confirm `git status` contains only intended public files.
-4. Create the public repository and push `main`.
-5. Wait for CI to pass, then apply branch protection using the exact check name shown by GitHub.
-6. Verify README images, local links, issue forms, and the live application link on GitHub.
-7. Add the public repository URL to the submission checklist, video description, and social post.
-8. Create the `v0.1.0` release only after its tag, changelog, and deployed revision agree.
+1. Run `npm run check` and `npm run test:e2e` in an unrestricted local environment.
+2. Confirm `git status` contains only intended public files.
+3. Create the public repository and push `main`.
+4. Wait for CI to pass, then apply branch protection using the exact check name shown by GitHub.
+5. Verify README images, local links, issue forms, and the live application link on GitHub.
+6. Add the public repository URL to the submission checklist, video description, and social post.
+7. Create the `v0.1.0` release only after its tag, changelog, and deployed revision agree.
 
 Do not paste a Gemini key into GitHub Actions. If a future workflow needs cloud deployment, prefer Workload Identity Federation and a dedicated deployment identity over a long-lived service-account key.

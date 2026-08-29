@@ -14,7 +14,7 @@ Try it: https://trangngu-6m6au2eisq-as.a.run.app
 
 Demo: [PUBLIC_YOUTUBE_URL]
 
-Code: [PUBLIC_GITHUB_URL]
+Code: https://github.com/thqhuong/trangngu
 
 Build notes: I kept the MVP account-free, limited processing to 15 pages per job and 45 pages per requester per day, and designed it not to retain uploaded PDFs. The Gemini free-tier disclosure means users should not upload sensitive documents.
 
@@ -30,7 +30,7 @@ The biggest product decision was human review. A translator should not silently 
 
 Live app: https://trangngu-6m6au2eisq-as.a.run.app
 Demo: [PUBLIC_YOUTUBE_URL]
-Repository: [PUBLIC_GITHUB_URL]
+Repository: https://github.com/thqhuong/trangngu
 AI Studio: [PUBLIC_AI_STUDIO_URL]
 
 #BuildwithGoogleAI #AIRiserVietnam2026 #GeminiAPI #GoogleCloudRun #DocumentAI
