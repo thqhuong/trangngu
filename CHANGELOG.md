@@ -22,7 +22,8 @@ All notable changes to TrangNgữ are recorded here.
 
 ### Verified
 
-- Deployed `trangngu-00009-45w` publicly in `asia-southeast1` with 100% traffic.
+- Deployed `trangngu-00010-544` publicly in `asia-southeast1` with 100% traffic.
+- Added a prominent, mobile-friendly owner-testing panel directly below the unlocked dashboard heading so the bypass control is easy to find.
 - Completed the two-page mixed demo through real OCR, translation, review, and export.
 - Passed the local quality gate and desktop/mobile production browser checks.
 - Exercised the supplied 15-page image-only music PDF in production. Owner mode successfully bypassed the daily requester guardrail and reached OCR/Gemini; the model response still failed strict validation, so a successful output for this fixture remains open work.

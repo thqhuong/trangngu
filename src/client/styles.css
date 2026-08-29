@@ -312,6 +312,12 @@ main { flex: 1; }
 .admin-login-card form .primary-button { width: 100%; margin-top: 12px; }
 .admin-login-error { display: flex; align-items: flex-start; gap: 7px; margin-top: 10px; padding: 10px; background: var(--red-soft); color: #963b2c; border-radius: 8px; font-size: 10px; line-height: 1.5; }
 .admin-login-error svg { flex: none; }
+.owner-testing-panel { margin: 0 0 24px; padding: 20px 22px; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 16px; border: 1px solid #8eb29c; border-radius: 14px; background: linear-gradient(135deg, #edf5ef, #f8faf5); box-shadow: 0 6px 22px rgba(30, 86, 56, .08); }
+.owner-testing-icon { width: 48px; height: 48px; display: grid; place-items: center; border-radius: 13px; background: var(--green); color: white; }
+.owner-testing-panel > div > span { color: var(--green); font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; }
+.owner-testing-panel h2 { margin: 3px 0 5px; font-family: Newsreader, Georgia, serif; font-size: 25px; line-height: 1.05; letter-spacing: -.025em; }
+.owner-testing-panel p { margin: 0; max-width: 690px; color: var(--muted); font-size: 10px; line-height: 1.55; }
+.owner-testing-panel .primary-button { min-width: 190px; min-height: 44px; padding-inline: 16px; font-size: 10px; }
 .admin-login-card > small { display: block; color: var(--muted); font-size: 8px; line-height: 1.55; margin-top: 16px; }
 .admin-dashboard { max-width: 1328px; margin: 0 auto; padding: 52px 24px 78px; }
 .admin-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; margin-bottom: 30px; }
@@ -406,6 +412,8 @@ main { flex: 1; }
   .translation-controls > label, .usage-limit { grid-column: auto; }
   .primary-button { min-height: 50px; }
   .usage-limit { justify-self: center; }
+  .owner-testing-panel { grid-template-columns: auto minmax(0, 1fr); padding: 18px; }
+  .owner-testing-panel .primary-button { grid-column: 1 / -1; width: 100%; }
   .privacy-note { margin-inline: 0; }
   .how-it-works { padding: 44px 16px; }
   .section-heading { display: block; }

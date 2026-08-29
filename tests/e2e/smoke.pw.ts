@@ -58,8 +58,9 @@ test("enables owner testing only for the current tab", async ({ page }) => {
   await page.goto("/#/admin");
   await page.getByLabel("Admin access key").fill("e2e-owner-access-key-that-is-safe-and-local");
   await page.getByRole("button", { name: "Open dashboard" }).click();
-  await expect(page.getByRole("button", { name: "Enable owner testing" })).toBeVisible();
-  await page.getByRole("button", { name: "Enable owner testing" }).click();
+  const ownerPanel = page.locator(".owner-testing-panel");
+  await expect(ownerPanel.getByRole("heading", { name: "Translate beyond today’s public limit" })).toBeVisible();
+  await ownerPanel.getByRole("button", { name: "Enable owner testing" }).click();
   await expect(page.getByRole("button", { name: "Owner testing" })).toBeVisible();
   await expect(page.getByText("Owner testing · daily limit bypassed")).toBeVisible();
 

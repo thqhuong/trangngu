@@ -44,7 +44,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Latest ready revision receives 100% of traffic.
 - [x] `/api/health`, homepage, mobile/desktop, export, and real provider path pass against the public URL.
 - [x] Public URL: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [x] Verified revision and test date: `trangngu-00009-45w` on 2026-08-29 (shell, assets, health, locked admin boundary, desktop/mobile)
+- [x] Verified revision and test date: `trangngu-00010-544` on 2026-08-29 (shell, assets, health, locked admin boundary, desktop/mobile)
 - [ ] Resolve the supplied 15-page music PDF's `UNSAFE_RESPONSE`; owner mode passed the daily guardrail and reached the real providers, but no successful output is claimed.
 
 ## Privacy and cost

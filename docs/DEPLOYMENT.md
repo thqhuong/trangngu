@@ -8,7 +8,7 @@ This guide builds and deploys the single TrangNgữ container to a public Cloud 
 |---|---|
 | Project | `trangngu-ai-riser-2026`, separate from Doc2Do |
 | Public URL | `https://trangngu-6m6au2eisq-as.a.run.app` |
-| Service / revision | `trangngu` / `trangngu-00009-45w` |
+| Service / revision | `trangngu` / `trangngu-00010-544` |
 | Traffic | 100% to the latest ready revision |
 | Cloud Build | `8ffe8fdb-bc3b-47e9-8409-8ee41ea0205d` |
 | Gemini | `gemini-3.5-flash-lite`, API-restricted key in an unbilled Gemini project |

@@ -97,6 +97,15 @@ export function AdminDashboard({ onBack, onEnableOwnerMode }: { onBack: () => vo
         <span>Updated {new Intl.DateTimeFormat("en-US", { dateStyle: "medium", timeStyle: "short" }).format(new Date(stats.generatedAt))}</span>
       </section>
 
+      <section className="owner-testing-panel" aria-labelledby="owner-testing-title">
+        <span className="owner-testing-icon"><Gauge size={24} /></span>
+        <div><span>Production testing</span><h2 id="owner-testing-title">Translate beyond today’s public limit</h2>
+          <p>Enable owner testing for this browser tab. Daily job and page limits are bypassed; monthly OCR and provider quotas still apply.</p></div>
+        <button type="button" className="primary-button" onClick={() => onEnableOwnerMode(accessKey)}>
+          <ShieldCheck size={17} /> Enable owner testing
+        </button>
+      </section>
+
       <section className="admin-kpis" aria-label="Today's key statistics">
         <article><span className="admin-kpi-icon green"><FileText size={20} /></span><small>Pages translated today</small><strong>{formatNumber(stats.today.pagesTranslated)}</strong><p>{formatNumber(stats.period.pagesTranslated)} in the last {stats.periodDays} days</p></article>
         <article><span className="admin-kpi-icon blue"><Languages size={20} /></span><small>Completed jobs today</small><strong>{formatNumber(stats.today.jobsCompleted)}</strong><p>{formatNumber(stats.period.jobsCompleted)} completed · {formatNumber(stats.period.jobsFailed)} failed</p></article>
