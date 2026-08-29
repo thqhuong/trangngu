@@ -1,0 +1,45 @@
+substitutions:
+  _REGION: asia-southeast1
+  _SERVICE: trangngu
+  _REPOSITORY: trangngu
+  _DOCUMENT_AI_PROCESSOR_ID: REPLACE_BEFORE_DEPLOY
+  _GEMINI_MODEL: gemini-3.5-flash-lite
+
+steps:
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - build
+      - --tag=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - .
+
+  - name: gcr.io/cloud-builders/docker
+    args:
+      - push
+      - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    entrypoint: gcloud
+    args:
+      - run
+      - deploy
+      - ${_SERVICE}
+      - --image=${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+      - --project=${PROJECT_ID}
+      - --region=${_REGION}
+      - --platform=managed
+      - --allow-unauthenticated
+      - --service-account=trangngu-runtime@${PROJECT_ID}.iam.gserviceaccount.com
+      - --cpu=1
+      - --memory=2Gi
+      - --concurrency=2
+      - --min=0
+      - --max=2
+      - --timeout=600s
+      - --set-env-vars=NODE_ENV=production,GOOGLE_CLOUD_PROJECT=${PROJECT_ID},DOCUMENT_AI_LOCATION=${_REGION},DOCUMENT_AI_PROCESSOR_ID=${_DOCUMENT_AI_PROCESSOR_ID},GEMINI_MODEL=${_GEMINI_MODEL},MAX_PDF_BYTES=26214400,MAX_PAGES_PER_JOB=15,DAILY_JOB_LIMIT=3,DAILY_PAGE_LIMIT=45,MONTHLY_OCR_PAGE_CAP=900,SESSION_TTL_MINUTES=30,GEMINI_TIMEOUT_MS=90000,DOCUMENT_AI_TIMEOUT_MS=90000
+      - --set-secrets=GEMINI_API_KEY=trangngu-gemini-api-key:latest,SESSION_SIGNING_SECRET=trangngu-session-signing-secret:latest,IP_HASH_SALT=trangngu-ip-hash-salt:latest
+
+images:
+  - ${_REGION}-docker.pkg.dev/${PROJECT_ID}/${_REPOSITORY}/${_SERVICE}:${BUILD_ID}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
