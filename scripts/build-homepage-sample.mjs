@@ -61,6 +61,8 @@ const recoveredTranslations = new Map(Object.entries({
   "If officials ask you to leave, take your": "Nếu nhà chức trách yêu cầu rời đi, hãy mang theo",
   "emergency bag and move before": "túi cứu hộ và di chuyển trước khi",
   "routes become unsafe.": "các tuyến đường trở nên không an toàn.",
+  "If officials ask you to leave, take your emergency bag and": "Nếu nhà chức trách yêu cầu rời đi, hãy mang theo túi cứu hộ và",
+  "move before routes become unsafe.": "di chuyển trước khi các tuyến đường trở nên không an toàn.",
   "SAMPLE DOCUMENT - CREATED FOR TRANGNGU - NO PERSONAL DATA": "TÀI LIỆU MẪU - TẠO CHO TRANGNGU - KHÔNG CÓ DỮ LIỆU CÁ NHÂN",
   "SOURCE SAMPLE / ENGLISH": "MẪU NGUỒN / TIẾNG ANH",
   "For demonstration only. In an emergency, follow current guidance from local authorities.": "Chỉ dành cho mục đích minh họa. Trong trường hợp khẩn cấp, hãy tuân theo hướng dẫn hiện tại từ cơ quan chức năng địa phương.",
@@ -74,7 +76,7 @@ if (mode !== "production") {
         return new Map(blocks.map((block) => {
           if (mode === "fallback" || /^\d+$/.test(block.originalText)) return [block.id, block.originalText];
           const translated = recoveredTranslations.get(block.originalText);
-          if (!translated) throw new Error(`No recovered Gemini translation for block ${block.id}.`);
+          if (!translated) throw new Error(`No recovered Gemini translation for block ${block.id}: ${JSON.stringify(block.originalText)}.`);
           return [block.id, translated];
         }));
       },
@@ -106,7 +108,7 @@ if (mode !== "production") {
   session = ready.session;
 }
 
-const output = await exportTranslatedPdf(source, session, {}, config);
+const output = await exportTranslatedPdf(source, session, {}, {}, config);
 if (output.subarray(0, 5).toString() !== "%PDF-") throw new Error("Export did not return a PDF.");
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, output);

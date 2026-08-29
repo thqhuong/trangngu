@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { correctionMapSchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
+import { boxAdjustmentMapSchema, correctionMapSchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
 import type { AppConfig } from "./config.js";
 import { AppError } from "./errors.js";
 import { exportTranslatedPdf, inspectPdf } from "./pdf.js";
@@ -115,6 +115,7 @@ export interface ExportInput {
   file: Buffer;
   sessionToken: string;
   corrections: unknown;
+  boxAdjustments?: unknown;
 }
 
 export async function exportPdf(
@@ -131,14 +132,20 @@ export async function exportPdf(
     throw new AppError("DOCUMENT_MISMATCH", "Upload the same PDF that was used for this translation.");
   }
   const corrections = correctionMapSchema.safeParse(input.corrections);
-  if (!corrections.success) {
-    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections are invalid.");
+  const boxAdjustments = boxAdjustmentMapSchema.safeParse(input.boxAdjustments ?? {});
+  if (!corrections.success || !boxAdjustments.success) {
+    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections or box sizes are invalid.");
   }
-  const knownIds = new Set(session.pages.flatMap((page) => page.blocks.map((block) => block.id)));
+  const knownBlocks = new Map(session.pages.flatMap((page) => page.blocks.map((block) => [block.id, block] as const)));
   const entries = Object.entries(corrections.data);
-  if (entries.some(([id]) => !knownIds.has(id)) || entries.reduce((total, [, text]) => total + text.length, 0) > 250_000) {
-    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections do not belong to this document.");
+  const adjustmentEntries = Object.entries(boxAdjustments.data);
+  const invalidAdjustment = adjustmentEntries.some(([id, size]) => {
+    const block = knownBlocks.get(id);
+    return !block || block.box.x + size.width > 1.000_001 || block.box.y + size.height > 1.000_001;
+  });
+  if (entries.some(([id]) => !knownBlocks.has(id)) || invalidAdjustment || entries.reduce((total, [, text]) => total + text.length, 0) > 250_000) {
+    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections or box sizes do not belong to this document or fit on its page.");
   }
-  const buffer = await exportTranslatedPdf(input.file, session, corrections.data, config);
+  const buffer = await exportTranslatedPdf(input.file, session, corrections.data, boxAdjustments.data, config);
   return { buffer, session };
 }

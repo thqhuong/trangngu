@@ -125,6 +125,31 @@ describe("PDF workflow", () => {
     const result = await exportPdf({ file: source, sessionToken: session.sessionToken, corrections: {} }, config, services);
     expect(result.buffer.subarray(0, 5).toString()).toBe("%PDF-");
   }, 30_000);
+
+  it("exports a validated user-resized translation box", async () => {
+    const source = await fixturePdf();
+    const services = createBackendServices(config, { translator });
+    const session = await translatePdf({ file: source, fileName: "resized.pdf", targetLanguage: "vi", requesterIp: "127.0.0.4" }, config, services, () => undefined);
+    const block = session.pages[0]!.blocks[0]!;
+    const result = await exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      boxAdjustments: {
+        [block.id]: {
+          width: Math.min(1 - block.box.x, block.box.width * 1.15),
+          height: Math.min(1 - block.box.y, block.box.height * 1.4),
+        },
+      },
+    }, config, services);
+    expect(result.buffer.subarray(0, 5).toString()).toBe("%PDF-");
+    await expect(exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      boxAdjustments: { [block.id]: { width: 1, height: 1 } },
+    }, config, services)).rejects.toMatchObject({ code: "INVALID_CORRECTIONS" });
+  }, 30_000);
 });
 
 describe("security and quotas", () => {

@@ -9,7 +9,7 @@ import { AppError } from "./errors.js";
 import type { AppConfig } from "./config.js";
 import type { ExtractedPage } from "./providers.js";
 import type { SessionPayload } from "./security.js";
-import type { TranslationBlock } from "../shared/contracts.js";
+import type { BoxSizeAdjustment, TranslationBlock } from "../shared/contracts.js";
 
 type PdfJsDocument = {
   numPages: number;
@@ -296,6 +296,7 @@ export async function exportTranslatedPdf(
   source: Buffer,
   session: SessionPayload,
   corrections: Record<string, string>,
+  boxAdjustments: Record<string, BoxSizeAdjustment>,
   config: AppConfig,
 ): Promise<Buffer> {
   const tempDirectory = await mkdtemp(join(tmpdir(), "trangngu-"));
@@ -338,21 +339,25 @@ export async function exportTranslatedPdf(
       page.drawImage(image, { x: 0, y: 0, width: pageInfo.width, height: pageInfo.height });
       for (const block of pageInfo.blocks) {
         const translatedText = corrections[block.id] ?? block.translatedText;
+        const adjustedSize = boxAdjustments[block.id];
         const x = block.box.x * pageInfo.width;
         const top = block.box.y * pageInfo.height;
-        const boxWidth = block.box.width * pageInfo.width;
-        const boxHeight = block.box.height * pageInfo.height;
+        const originalWidth = block.box.width * pageInfo.width;
+        const originalHeight = block.box.height * pageInfo.height;
+        const originalY = pageInfo.height - top - originalHeight;
+        const boxWidth = (adjustedSize?.width ?? block.box.width) * pageInfo.width;
+        const boxHeight = (adjustedSize?.height ?? block.box.height) * pageInfo.height;
         const y = pageInfo.height - top - boxHeight;
         const background = sampleBackground(raw, block);
         const erasePaddingX = Math.max(2.5, Math.min(12, block.style.fontSize * 0.26));
         const erasePaddingY = Math.max(3, Math.min(12, block.style.fontSize * 0.42));
         const eraseX = Math.max(0, x - erasePaddingX);
-        const eraseY = Math.max(0, y - erasePaddingY);
+        const eraseY = Math.max(0, originalY - erasePaddingY);
         page.drawRectangle({
           x: eraseX,
           y: eraseY,
-          width: Math.min(pageInfo.width - eraseX, boxWidth + erasePaddingX * 2),
-          height: Math.min(pageInfo.height - eraseY, boxHeight + erasePaddingY * 2),
+          width: Math.min(pageInfo.width - eraseX, originalWidth + erasePaddingX * 2),
+          height: Math.min(pageInfo.height - eraseY, originalHeight + erasePaddingY * 2),
           color: rgb(background.r / 255, background.g / 255, background.b / 255),
         });
         const fitted = fitText(translatedText, font, block.style.fontSize, boxWidth, boxHeight);

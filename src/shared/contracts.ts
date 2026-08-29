@@ -77,6 +77,17 @@ export const correctionMapSchema = z
   .record(z.string().min(1).max(80), z.string().min(1).max(20_000))
   .refine((value) => Object.keys(value).length <= 1_500, "Too many corrections");
 
+export const boxSizeAdjustmentSchema = z.object({
+  width: z.number().min(0.001).max(1),
+  height: z.number().min(0.001).max(1),
+});
+
+export const boxAdjustmentMapSchema = z
+  .record(z.string().min(1).max(80), boxSizeAdjustmentSchema)
+  .refine((value) => Object.keys(value).length <= 1_500, "Too many box adjustments");
+
+export type BoxSizeAdjustment = z.infer<typeof boxSizeAdjustmentSchema>;
+
 export const progressEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("progress"), stage: z.enum(["validating", "extracting", "translating", "preparing"]), message: z.string(), progress: z.number().min(0).max(100) }),
   z.object({ type: z.literal("ready"), session: translationSessionSchema }),

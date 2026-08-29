@@ -1,4 +1,4 @@
-import { Check, ChevronLeft, ChevronRight, Columns2, Download, Eye, FileText, ScanText, Sparkles } from "lucide-react";
+import { Check, ChevronLeft, ChevronRight, Columns2, Eye, FileText, ScanText, Sparkles } from "lucide-react";
 import { useState, type KeyboardEvent, type PointerEvent } from "react";
 import type { Locale } from "./i18n";
 
@@ -7,7 +7,7 @@ const sampleCopy = {
     eyebrow: "Try the magic moment", title: "See the layout survive the translation",
     body: "This real one-page sample keeps its columns, callouts, icons, and visual hierarchy while the words change from English to Vietnamese.",
     split: "Side by side", reveal: "Drag to reveal", original: "Original · English", translated: "Translated · Vietnamese",
-    drag: "Drag the line across the page", input: "Download sample input", output: "Download translated result",
+    drag: "Drag the line across the page",
     note: "Reviewed Gemini output · selectable text · no quota used to explore this preview",
     stepOne: "Read structure", stepTwo: "Translate with Gemini", stepThree: "Rebuild PDF",
   },
@@ -15,7 +15,7 @@ const sampleCopy = {
     eyebrow: "Thử khoảnh khắc ấn tượng", title: "Xem bố cục được giữ nguyên khi dịch",
     body: "Mẫu một trang thực tế này giữ cột, khung chú thích, biểu tượng và hệ thống thị giác khi nội dung đổi từ tiếng Anh sang tiếng Việt.",
     split: "Hai bên", reveal: "Kéo để so sánh", original: "Bản gốc · Tiếng Anh", translated: "Bản dịch · Tiếng Việt",
-    drag: "Kéo đường chia ngang qua trang", input: "Tải PDF mẫu", output: "Tải kết quả đã dịch",
+    drag: "Kéo đường chia ngang qua trang",
     note: "Kết quả Gemini đã kiểm tra · chọn được chữ · xem mẫu không tốn hạn mức",
     stepOne: "Đọc cấu trúc", stepTwo: "Dịch bằng Gemini", stepThree: "Dựng lại PDF",
   },
@@ -71,9 +71,6 @@ export function SampleComparison({ locale }: { locale: Locale }) {
       <p className="sample-drag-hint"><ChevronLeft size={14} /> {t.drag} <ChevronRight size={14} /></p>
     </div>}
 
-    <div className="sample-actions"><span>{t.note}</span><div>
-      <a href="/sample/trangngu-sample-original.pdf" download><Download size={16} /> {t.input}</a>
-      <a href="/sample/trangngu-sample-translated.pdf" download><Download size={16} /> {t.output}</a>
-    </div></div>
+    <div className="sample-actions"><span>{t.note}</span></div>
   </section>;
 }

@@ -77,7 +77,7 @@ describe("streamTranslation", () => {
 
 describe("exportTranslation", () => {
   it("uses the UTF-8 download filename returned by the API", async () => {
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Blob(["pdf"]), {
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(new Blob(["pdf"]), {
       status: 200,
       headers: { "content-disposition": "attachment; filename*=UTF-8''T%C3%A0i-li%E1%BB%87u-vi.pdf" },
     }));
@@ -86,10 +86,14 @@ describe("exportTranslation", () => {
       new File(["%PDF"], "guide.pdf", { type: "application/pdf" }),
       "signed-session-token-long-enough",
       { "block-1": "Bản dịch đã sửa" },
+      { "block-1": { width: 0.6, height: 0.15 } },
     );
 
     expect(result.fileName).toBe("Tài-liệu-vi.pdf");
     expect(result.blob.size).toBeGreaterThan(0);
+    const request = fetchMock.mock.calls[0]?.[1];
+    const form = request?.body as FormData;
+    expect(JSON.parse(String(form.get("boxAdjustments")))).toEqual({ "block-1": { width: 0.6, height: 0.15 } });
   });
 });
 

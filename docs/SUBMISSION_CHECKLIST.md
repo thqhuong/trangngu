@@ -13,7 +13,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [ ] Invalid type, 25 MB, 15-page, encryption, quota, timeout, and provider errors are understandable.
 - [ ] Double submission is blocked.
 - [x] Desktop and mobile layouts pass.
-- [x] Homepage sample supports reveal and side-by-side comparison, keyboard input, and both PDF downloads.
+- [x] Homepage sample uses a balanced layout and supports reveal and side-by-side comparison plus keyboard input; distracting sample download buttons are intentionally absent.
 - [x] Admin dashboard exposes aggregate counters only and rejects unauthenticated requests.
 
 ## Engineering evidence
@@ -41,7 +41,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Latest ready revision receives 100% of traffic.
 - [x] `/api/health`, homepage, mobile/desktop, export, and real provider path pass against the public URL.
 - [x] Public URL: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [x] Verified revision and test date: `trangngu-00005-85v` on 2026-08-29
+- [x] Verified revision and test date: `trangngu-00006-ltv` on 2026-08-29
 
 ## Privacy and cost
 
@@ -68,7 +68,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Fixture rights confirmed and filename is presentation-safe.
 - [x] Target language begins as Vietnamese.
 - [ ] Browser cache/session state does not hide first-run behavior.
-- [ ] Comparison slider, one known review flag, correction, and download are stable.
+- [ ] Comparison slider, one known review flag, wording correction, text-box resize/reset, and download are stable.
 - [ ] Backup fixture is available, but no AI response is faked.
 - [ ] Recording hides notifications, credentials, project identifiers where unnecessary, and private tabs.
 - [ ] Spoken claims match what the viewer sees.

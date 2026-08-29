@@ -16,11 +16,12 @@ Existing free translators often lose page structure, fail on scans, or return te
 4. Digital pages use embedded text. Scan-like pages use Document AI OCR.
 5. Gemini translates stable text blocks using a strict JSON response schema.
 6. The review workspace overlays translated blocks on page previews and flags uncertain or overflowing text.
-7. The user corrects flagged blocks and downloads a fixed-layout, searchable translated PDF.
+7. The user can correct wording and resize a translated text box by dragging its green corner or using width and height controls.
+8. The user downloads a searchable fixed-layout PDF containing the reviewed wording and safe box sizes.
 
 The demo magic moment is a scanned page becoming Vietnamese in place while columns, table lines, images, and page geometry remain aligned in a before/after comparison.
 
-The homepage includes a pre-tested one-page sample so a visitor can drag a reveal line or switch to side-by-side mode before spending quota. The translated sample is reviewed Gemini output, not a browser-only mock.
+The homepage includes a pre-tested, balanced one-page sample so a visitor can drag a reveal line or switch to side-by-side mode before spending quota. The translated sample is reviewed Gemini output, not a browser-only mock. Sample download buttons are intentionally omitted so the section demonstrates the outcome without distracting from the upload workflow.
 
 ## Limits and supported targets
 
@@ -50,7 +51,9 @@ The app should flag content it cannot fit safely instead of silently damaging th
 ## Acceptance criteria
 
 - A new user understands the promise, limits, and privacy behavior immediately.
-- A valid digital, scanned, or mixed PDF completes upload, translation, review, correction, and export.
+- A valid digital, scanned, or mixed PDF completes upload, translation, review, wording/box-size correction, and export.
+- A user can make the selected translated box larger or smaller with a drag handle or precise controls, reset it, and export the adjusted layout.
+- The server rejects unknown, malformed, or page-escaping box adjustments.
 - Gemini returns every expected block ID exactly once, and the server rejects malformed, missing, duplicated, or extra blocks.
 - Invalid, encrypted, oversized, over-page-limit, quota-limited, and timed-out requests receive actionable messages.
 - The exported PDF remains readable on desktop and mobile, preserves recognizable structure, and contains selectable translated text.

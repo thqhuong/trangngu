@@ -3,8 +3,8 @@ import {
   Columns2, Download, Eye, FileText, Globe2, Languages, LayoutTemplate, LoaderCircle,
   LockKeyhole, Pencil, RefreshCw, ScanText, ShieldCheck, Sparkles, UploadCloud, X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent } from "react";
-import type { LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from "react";
+import type { BoxSizeAdjustment, LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
 import { exportTranslation, loadPublicConfig, streamTranslation } from "./api";
 import { AdminDashboard } from "./AdminDashboard";
 import { copy, DEFAULT_CONFIG, formatBytes, getFriendlyError, type Locale } from "./i18n";
@@ -20,29 +20,53 @@ function blockText(block: TranslationBlock, corrections: Record<string, string>)
   return corrections[block.id] ?? block.translatedText;
 }
 
-function TranslationOverlay({ blocks, corrections, activeId, onSelect }: {
-  blocks: TranslationBlock[]; corrections: Record<string, string>; activeId: string | null; onSelect: (id: string) => void;
+function blockSize(block: TranslationBlock, adjustments: Record<string, BoxSizeAdjustment>): BoxSizeAdjustment {
+  return adjustments[block.id] ?? { width: block.box.width, height: block.box.height };
+}
+
+function TranslationOverlay({ blocks, corrections, adjustments, activeId, onSelect, onResize }: {
+  blocks: TranslationBlock[]; corrections: Record<string, string>; adjustments: Record<string, BoxSizeAdjustment>;
+  activeId: string | null; onSelect: (id: string) => void; onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void;
 }) {
   return <div className="translation-overlay" aria-hidden="true">{blocks.map((block) => {
+    const size = blockSize(block, adjustments);
     const style = {
-      left: `${block.box.x * 100}%`, top: `${block.box.y * 100}%`, width: `${block.box.width * 100}%`, height: `${block.box.height * 100}%`,
+      left: `${block.box.x * 100}%`, top: `${block.box.y * 100}%`, width: `${size.width * 100}%`, height: `${size.height * 100}%`,
       color: block.style.color, fontSize: `${Math.max(7, Math.min(24, block.style.fontSize * 0.8))}px`,
       fontWeight: block.style.bold ? 700 : 400, fontStyle: block.style.italic ? "italic" : "normal", textAlign: block.style.align,
     } satisfies CSSProperties;
-    return <button type="button" key={block.id} tabIndex={-1} style={style} onClick={() => onSelect(block.id)}
+    const resize = (event: PointerEvent<HTMLSpanElement>) => {
+      const overlay = event.currentTarget.closest(".translation-overlay");
+      if (!(overlay instanceof HTMLElement)) return;
+      const bounds = overlay.getBoundingClientRect();
+      const minimumWidth = Math.min(0.02, 1 - block.box.x);
+      const minimumHeight = Math.min(0.02, 1 - block.box.y);
+      onResize(block, {
+        width: Math.max(minimumWidth, Math.min(1 - block.box.x, (event.clientX - bounds.left) / bounds.width - block.box.x)),
+        height: Math.max(minimumHeight, Math.min(1 - block.box.y, (event.clientY - bounds.top) / bounds.height - block.box.y)),
+      });
+    };
+    return <div key={block.id}>
+      <button type="button" tabIndex={-1} style={style} onClick={() => onSelect(block.id)}
       className={`translated-block${block.needsReview ? " needs-review" : ""}${activeId === block.id ? " is-active" : ""}`}>
       {blockText(block, corrections)}
-    </button>;
+      </button>
+      {activeId === block.id && <div className="block-resize-frame" style={style}>
+        <span className="block-resize-handle" onPointerDown={(event) => { event.stopPropagation(); event.currentTarget.setPointerCapture(event.pointerId); resize(event); }}
+          onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) resize(event); }} />
+      </div>}
+    </div>;
   })}</div>;
 }
 
-function PagePreview({ document, pageNumber, blocks, corrections, activeId, onSelect, translated = false, label }: {
+function PagePreview({ document, pageNumber, blocks, corrections, adjustments, activeId, onSelect, onResize, translated = false, label }: {
   document: ReturnType<typeof usePdf>["document"]; pageNumber: number; blocks: TranslationBlock[]; corrections: Record<string, string>;
-  activeId: string | null; onSelect: (id: string) => void; translated?: boolean; label: string;
+  adjustments: Record<string, BoxSizeAdjustment>; activeId: string | null; onSelect: (id: string) => void;
+  onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void; translated?: boolean; label: string;
 }) {
   return <div className={`pdf-sheet${translated ? " is-translated" : ""}`}>
     <PdfCanvas document={document} pageNumber={pageNumber} label={label} />
-    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} activeId={activeId} onSelect={onSelect} />}
+    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} adjustments={adjustments} activeId={activeId} onSelect={onSelect} onResize={onResize} />}
   </div>;
 }
 
@@ -59,6 +83,7 @@ function TranslatorApp() {
   const [requestError, setRequestError] = useState<{ code: string; message: string; requestId?: string } | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
   const [corrections, setCorrections] = useState<Record<string, string>>({});
+  const [boxAdjustments, setBoxAdjustments] = useState<Record<string, BoxSizeAdjustment>>({});
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"split" | "reveal">("split");
   const [reveal, setReveal] = useState(54);
@@ -85,7 +110,7 @@ function TranslatorApp() {
   const currentPage = session?.pages.find((page) => page.page === pageNumber) ?? null;
   const pageBlocks = useMemo(() => currentPage ? [...currentPage.blocks].sort((a, b) => Number(b.needsReview) - Number(a.needsReview)) : [], [currentPage]);
   const flaggedCount = session?.pages.reduce((count, page) => count + page.blocks.filter((block) => block.needsReview).length, 0) ?? 0;
-  const editedCount = Object.keys(corrections).length;
+  const editedCount = new Set([...Object.keys(corrections), ...Object.keys(boxAdjustments)]).size;
 
   useEffect(() => {
     const blocks = session?.pages.find((page) => page.page === pageNumber)?.blocks ?? [];
@@ -104,7 +129,7 @@ function TranslatorApp() {
   const onDrop = (event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); };
   const reset = () => {
     controllerRef.current?.abort(); controllerRef.current = null; setPhase("upload"); setFile(null); setFileError(null);
-    setSession(null); setCorrections({}); setRequestError(null); setPageNumber(1); setExportNotice(null); setExporting(false);
+    setSession(null); setCorrections({}); setBoxAdjustments({}); setRequestError(null); setPageNumber(1); setExportNotice(null); setExporting(false);
   };
   const start = async () => {
     if (!file || !pdf.document || pdf.loading || fileError || phase === "processing") return;
@@ -114,7 +139,7 @@ function TranslatorApp() {
       const ready = await streamTranslation(file, targetLanguage, (event: ProgressEvent) => {
         if (event.type === "progress") setProgress({ stage: event.stage, value: event.progress });
       }, controller.signal);
-      setSession(ready); setCorrections({}); setPageNumber(1); setPhase("review");
+      setSession(ready); setCorrections({}); setBoxAdjustments({}); setPageNumber(1); setPhase("review");
     } catch (error) {
       if (controller.signal.aborted) { setPhase("upload"); return; }
       setRequestError(getFriendlyError(error, locale)); setPhase("error");
@@ -125,11 +150,22 @@ function TranslatorApp() {
     if (value !== block.translatedText) return { ...current, [block.id]: value };
     const next = { ...current }; delete next[block.id]; return next;
   });
+  const updateBoxSize = (block: TranslationBlock, nextSize: BoxSizeAdjustment) => setBoxAdjustments((current) => {
+    const width = Math.max(0.001, Math.min(1 - block.box.x, nextSize.width));
+    const height = Math.max(0.001, Math.min(1 - block.box.y, nextSize.height));
+    if (Math.abs(width - block.box.width) < 0.000_5 && Math.abs(height - block.box.height) < 0.000_5) {
+      const next = { ...current }; delete next[block.id]; return next;
+    }
+    return { ...current, [block.id]: { width, height } };
+  });
+  const restoreBoxSize = (block: TranslationBlock) => setBoxAdjustments((current) => {
+    const next = { ...current }; delete next[block.id]; return next;
+  });
   const download = async () => {
     if (!file || !session || exporting) return;
     setExporting(true); setExportNotice(null);
     try {
-      const result = await exportTranslation(file, session.sessionToken, corrections);
+      const result = await exportTranslation(file, session.sessionToken, corrections, boxAdjustments);
       const url = URL.createObjectURL(result.blob); const link = document.createElement("a");
       link.href = url; link.download = result.fileName; document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1_000); setExportNotice({ kind: "success", text: t.downloadReady });
@@ -218,11 +254,11 @@ function TranslatorApp() {
         <div className="review-workspace"><div className="comparison-column">
           {pdf.error && <div className="preview-warning"><AlertTriangle size={17} /> {t.previewUnavailable}</div>}
           {viewMode === "split" ? <div className="split-comparison">
-            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} activeId={activeBlockId} onSelect={setActiveBlockId} label={`${t.original} ${pageNumber}`} /></div>
-            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} activeId={activeBlockId} onSelect={setActiveBlockId} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
           </div> : <div className="reveal-comparison"><div className="preview-label"><span>{t.original} ↔ {t.translated}</span><small>{reveal}%</small></div>
-            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} activeId={activeBlockId} onSelect={setActiveBlockId} label={`${t.original} ${pageNumber}`} />
-              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} activeId={activeBlockId} onSelect={setActiveBlockId} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
+              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
               <div className="reveal-divider" style={{ left: `${reveal}%` }}><span><ChevronLeft size={14} /><ChevronRight size={14} /></span></div></div>
             <label className="reveal-range"><span>{t.reveal}</span><input type="range" min="0" max="100" value={reveal} onChange={(e) => setReveal(Number(e.target.value))} /></label>
           </div>}
@@ -234,6 +270,16 @@ function TranslatorApp() {
               <div className="block-card-top"><span>#{String(index + 1).padStart(2, "0")}</span>{block.needsReview ? <b><AlertTriangle size={14} /> {block.reviewReason || t.lowConfidence}</b> : <b className="confidence"><Check size={14} /> {Math.round(block.confidence * 100)}% {t.confidence}</b>}</div>
               <label><span>{t.originalText}</span><div className="original-text" lang="auto">{block.originalText}</div></label>
               <label><span>{t.translationText}</span><textarea value={blockText(block, corrections)} onChange={(e) => updateCorrection(block, e.target.value)} onFocus={() => setActiveBlockId(block.id)} rows={Math.min(7, Math.max(2, Math.ceil(blockText(block, corrections).length / 54)))} /></label>
+              <div className="box-size-controls" onClick={(event) => event.stopPropagation()}>
+                <div className="box-size-heading"><div><span>{t.textBoxSize}</span><small>{t.textBoxHint}</small></div>
+                  {boxAdjustments[block.id] && <button type="button" onClick={() => restoreBoxSize(block)}><RefreshCw size={12} /> {t.restoreBox}</button>}</div>
+                <label className="box-size-range"><span>{t.boxWidth}<b>{Math.round(blockSize(block, boxAdjustments).width * 100)}%</b></span>
+                  <input type="range" min={Math.min(0.02, 1 - block.box.x)} max={1 - block.box.x} step="0.005" value={blockSize(block, boxAdjustments).width}
+                    onFocus={() => setActiveBlockId(block.id)} onChange={(event) => updateBoxSize(block, { ...blockSize(block, boxAdjustments), width: Number(event.target.value) })} /></label>
+                <label className="box-size-range"><span>{t.boxHeight}<b>{Math.round(blockSize(block, boxAdjustments).height * 100)}%</b></span>
+                  <input type="range" min={Math.min(0.02, 1 - block.box.y)} max={1 - block.box.y} step="0.005" value={blockSize(block, boxAdjustments).height}
+                    onFocus={() => setActiveBlockId(block.id)} onChange={(event) => updateBoxSize(block, { ...blockSize(block, boxAdjustments), height: Number(event.target.value) })} /></label>
+              </div>
               {corrections[block.id] !== undefined && <button type="button" className="restore-button" onClick={(e) => { e.stopPropagation(); updateCorrection(block, block.translatedText); }}><RefreshCw size={13} /> {t.restore}</button>}
             </article>)}
           </div>

@@ -17,6 +17,7 @@ The Gemini free tier currently states that submitted content may be used to impr
 |---|---|---|
 | Original PDF | Extraction, OCR, preview, and export | Request lifetime only; temporary files deleted after processing |
 | Extracted and translated text | Translation and review | Request/session response only; not stored in Firestore or logs |
+| User text corrections and text-box width/height choices | Reviewed PDF export | Submitted only with the export request; not stored in Firestore or logs |
 | Corrected block text | Final export | Export request only |
 | Document SHA-256 hash | Bind export to the reviewed source | Inside the 30-minute signed session, not a document database |
 | Salted requester hash | Daily abuse limits | Counter records only; no raw IP stored |

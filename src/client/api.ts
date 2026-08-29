@@ -3,6 +3,7 @@ import {
   progressEventSchema,
   publicConfigSchema,
   type AdminStats,
+  type BoxSizeAdjustment,
   type LanguageCode,
   type ProgressEvent,
   type PublicConfig,
@@ -127,12 +128,14 @@ export async function exportTranslation(
   file: File,
   sessionToken: string,
   corrections: Record<string, string>,
+  boxAdjustments: Record<string, BoxSizeAdjustment>,
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; fileName: string }> {
   const form = new FormData();
   form.set("file", file);
   form.set("sessionToken", sessionToken);
   form.set("corrections", JSON.stringify(corrections));
+  form.set("boxAdjustments", JSON.stringify(boxAdjustments));
 
   const response = await fetch("/api/exports", {
     method: "POST",

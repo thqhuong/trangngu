@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   adminStatsSchema,
+  boxAdjustmentMapSchema,
   boundingBoxSchema,
   correctionMapSchema,
   languageCodeSchema,
@@ -29,6 +30,13 @@ describe("shared API contracts", () => {
       "p1-b1": "Xin chào",
     });
     expect(correctionMapSchema.safeParse({ "": "text" }).success).toBe(false);
+  });
+
+  it("validates user-controlled PDF text-box sizes", () => {
+    expect(boxAdjustmentMapSchema.parse({ "p1-b1": { width: 0.42, height: 0.12 } })).toEqual({
+      "p1-b1": { width: 0.42, height: 0.12 },
+    });
+    expect(boxAdjustmentMapSchema.safeParse({ "p1-b1": { width: 1.2, height: 0.1 } }).success).toBe(false);
   });
 
   it("does not accept sessions above the public page limit", () => {

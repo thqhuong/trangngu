@@ -41,8 +41,7 @@ test("shows an interactive, quota-free PDF comparison", async ({ page }) => {
   await expect(comparison).toHaveAttribute("aria-valuenow", "54");
   await page.getByRole("button", { name: "Side by side" }).click();
   await expect(page.locator(".sample-split img")).toHaveCount(2);
-  await expect(page.getByRole("link", { name: "Download sample input" })).toHaveAttribute("href", "/sample/trangngu-sample-original.pdf");
-  await expect(page.getByRole("link", { name: "Download translated result" })).toHaveAttribute("href", "/sample/trangngu-sample-translated.pdf");
+  await expect(page.getByRole("link", { name: /Download sample|Download translated/ })).toHaveCount(0);
 });
 
 test("keeps the owner dashboard locked by default", async ({ page }) => {

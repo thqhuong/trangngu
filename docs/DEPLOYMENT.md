@@ -8,7 +8,7 @@ This guide builds and deploys the single TrangNgữ container to a public Cloud 
 |---|---|
 | Project | `trangngu-ai-riser-2026`, separate from Doc2Do |
 | Public URL | `https://trangngu-6m6au2eisq-as.a.run.app` |
-| Service / revision | `trangngu` / `trangngu-00005-85v` |
+| Service / revision | `trangngu` / `trangngu-00006-ltv` |
 | Traffic | 100% to the latest ready revision |
 | Cloud Build | `8ffe8fdb-bc3b-47e9-8409-8ee41ea0205d` |
 | Gemini | `gemini-3.5-flash-lite`, API-restricted key in an unbilled Gemini project |
@@ -20,7 +20,7 @@ This guide builds and deploys the single TrangNgữ container to a public Cloud 
 | Real provider verification | Earlier production acceptance: two-page mixed PDF with 26 digital-page blocks and 19 scanned-page OCR blocks; Gemini translation and uncorrected PDF export passed. The final dashboard/sample revision did not bypass the already-reached daily app limit to repeat provider work. |
 | Logs | No error-severity Cloud Run entries after final verification |
 
-The final smoke test verified the public shell, health endpoint, four sample assets, protected dashboard boundary, authenticated aggregate response, and desktop/mobile browser behavior. Uploaded PDFs, extracted text, translations, API keys, and session tokens were not written to Firestore or application logs.
+Cloud Build `4580a209-6479-4c03-adb1-864d38274bc7` deployed the current revision. The final smoke test verified the public shell, health endpoint, four sample assets, protected dashboard boundary, and desktop/mobile browser behavior. Local browser QA exercised drag-resize/reset on the review workspace, while integration tests verified accepted resized exports and rejected page-escaping dimensions. Uploaded PDFs, extracted text, translations, API keys, and session tokens were not written to Firestore or application logs.
 
 ## Prerequisites and approval gate
 
@@ -225,7 +225,8 @@ Then perform the acceptance test that scripts cannot replace:
 6. Repeat one invalid-input case and one double-submission attempt.
 7. Confirm the latest ready revision receives 100% of traffic.
 8. Inspect Cloud Run logs by request ID. Confirm no document text, token, or secret appears and no provider errors remain.
-9. Verify the homepage sample loads, the comparison line responds to pointer and keyboard input, both PDF downloads open, and the private dashboard works.
+9. Verify the balanced homepage sample loads, the comparison line responds to pointer and keyboard input, no sample download buttons are shown, and the private dashboard works.
+10. In the review workspace, resize a translated box using both the green drag handle and precise controls, reset it, and export a PDF; confirm the exported box remains on-page.
 
 Record the URL, revision, test date, model, processor, desktop/mobile result, real translation result, and expected cost risk in the submission notes. If any step fails, report the failure; do not claim deployment completion.
 
