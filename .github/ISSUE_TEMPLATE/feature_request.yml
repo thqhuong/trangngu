@@ -1,0 +1,41 @@
+name: Feature request
+description: Propose a focused improvement to the PDF translation workflow.
+title: "[Feature]: "
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: User problem
+      description: Who is blocked today, and what outcome do they need?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workflow
+    attributes:
+      label: Proposed workflow
+      description: Describe the smallest end-to-end change that solves the problem.
+    validations:
+      required: true
+
+  - type: textarea
+    id: impact
+    attributes:
+      label: Impact for Vietnamese users
+      description: Explain the practical accessibility, education, nonprofit, or small-team benefit.
+
+  - type: textarea
+    id: tradeoffs
+    attributes:
+      label: Cost, privacy, and complexity
+      description: Note provider calls, storage, authentication, OAuth scopes, or recurring-cost risks.
+
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: Scope check
+      options:
+        - label: This strengthens the document workflow rather than adding a generic chatbot.
+          required: true
+        - label: This proposal does not require sharing a private document.
+          required: true

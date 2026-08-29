@@ -10,7 +10,7 @@ Many useful reports and guides are hard to translate because their layout matter
 
 The workflow uses Google Document AI to recover text from scans, Gemini to translate validated document blocks, and Google Cloud Run for the public app. My favorite moment is sliding between the original scan and the Vietnamese page, then correcting one flagged block before download.
 
-Try it: [PUBLIC_CLOUD_RUN_URL]
+Try it: https://trangngu-6m6au2eisq-as.a.run.app
 
 Demo: [PUBLIC_YOUTUBE_URL]
 
@@ -28,7 +28,7 @@ For AI Riser Vietnam 2026, I focused on one complete workflow instead of another
 
 The biggest product decision was human review. A translator should not silently shrink or overlap important text. TrangNgữ calls out uncertain and cramped blocks so the user stays in control.
 
-Live app: [PUBLIC_CLOUD_RUN_URL]
+Live app: https://trangngu-6m6au2eisq-as.a.run.app
 Demo: [PUBLIC_YOUTUBE_URL]
 Repository: [PUBLIC_GITHUB_URL]
 AI Studio: [PUBLIC_AI_STUDIO_URL]

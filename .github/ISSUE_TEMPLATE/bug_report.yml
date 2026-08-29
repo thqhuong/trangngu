@@ -1,0 +1,64 @@
+name: Bug report
+description: Report a reproducible TrangNgữ problem using non-sensitive data.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for helping improve TrangNgữ. Do not upload private PDFs, credentials, session tokens, or document text. Report security issues privately through SECURITY.md.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the visible problem and what you expected instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Use a rights-safe sample or describe its structure without attaching sensitive content.
+      placeholder: |
+        1. Open the app
+        2. Select Vietnamese
+        3. Upload a two-page PDF...
+    validations:
+      required: true
+
+  - type: input
+    id: request-id
+    attributes:
+      label: Request ID
+      description: Include the sanitized request ID from the error message when available.
+
+  - type: dropdown
+    id: document-type
+    attributes:
+      label: Document type
+      options:
+        - Digital PDF with selectable text
+        - Scanned or image-only PDF
+        - Mixed digital and scanned PDF
+        - Invalid or unsupported input
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Browser and device
+      placeholder: Chrome 128, Windows 11, desktop
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: Safety check
+      options:
+        - label: I removed private document content, credentials, and session tokens.
+          required: true
+        - label: This is not a security vulnerability.
+          required: true

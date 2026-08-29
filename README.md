@@ -1,6 +1,10 @@
 # TrangNgữ
 
+![TrangNgữ — Translate the words. Keep the page.](public/og.png)
+
 **Translate the words, keep the page.** TrangNgữ is a layout-preserving PDF translator for digital and scanned documents. It is designed first for Vietnamese students, educators, nonprofits, and small teams who need useful translations without rebuilding every page by hand.
+
+[Open the live app](https://trangngu-6m6au2eisq-as.a.run.app) · [Try the demo PDF](outputs/trangngu-demo-flood-guide.pdf) · [Read the architecture](docs/ARCHITECTURE.md)
 
 > **Build status (2026-08-29):** the MVP is deployed and verified on Google Cloud Run. The mixed digital/scanned demo PDF completed the real Document AI + Gemini workflow and exported successfully without required corrections. Google AI Studio sharing, GitHub publishing, YouTube, and the social post are still submission tasks and are not claimed as complete.
 
@@ -27,6 +31,12 @@ The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%
 - 12 target languages: Vietnamese, English, Simplified Chinese, Japanese, Korean, Thai, Indonesian, French, German, Spanish, Portuguese, and Hindi.
 
 The intended demo magic moment is a scanned foreign-language page becoming Vietnamese in place while its columns, table, images, and overall geometry remain recognizable.
+
+## Product preview
+
+![TrangNgữ desktop translation workspace showing the source and translated PDF review flow](outputs/trangngu-desktop-preview.png)
+
+The same upload, comparison, review, and export workflow is designed for desktop and mobile browsers. The checked-in demo fixture is rights-safe and contains one embedded-text page plus one image-only scanned page.
 
 ## Architecture
 
@@ -162,6 +172,10 @@ The live demo should remain under three minutes: state the problem, upload the t
 - [Architecture](docs/ARCHITECTURE.md): data flow, security boundaries, and trade-offs
 - [Deployment guide](docs/DEPLOYMENT.md): Google Cloud resources, secrets, Cloud Build, verification, and rollback
 - [Privacy](docs/PRIVACY.md): temporary processing, provider disclosure, logs, and deletion behavior
+- [Contributing](CONTRIBUTING.md): local setup, quality gates, and pull-request expectations
+- [Security policy](SECURITY.md): supported version and private vulnerability reporting
+- [Changelog](CHANGELOG.md): shipped product and deployment milestones
+- [GitHub publishing guide](docs/GITHUB_PUBLISHING.md): repository metadata, settings, and launch checklist
 
 ## License
 

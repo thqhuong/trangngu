@@ -13,7 +13,7 @@ The Gemini free tier currently states that submitted content may be used to impr
 
 ## Data handled
 
-| Data | Purpose | Planned retention by TrangNgữ |
+| Data | Purpose | Retention by TrangNgữ |
 |---|---|---|
 | Original PDF | Extraction, OCR, preview, and export | Request lifetime only; temporary files deleted after processing |
 | Extracted and translated text | Translation and review | Request/session response only; not stored in Firestore or logs |

@@ -5,14 +5,15 @@ import process from "node:process";
 
 async function markdownFiles(directory) {
   const entries = await readdir(directory, { withFileTypes: true });
-  const files = await Promise.all(entries.map((entry) => {
+  const ignoredDirectories = new Set([".git", "coverage", "dist", "node_modules", "playwright-report", "test-results", "tmp", "work"]);
+  const files = await Promise.all(entries.filter((entry) => !ignoredDirectories.has(entry.name)).map((entry) => {
     const path = join(directory, entry.name);
     return entry.isDirectory() ? markdownFiles(path) : [path];
   }));
   return files.flat().filter((file) => extname(file) === ".md");
 }
 
-const files = [resolve("README.md"), ...(await markdownFiles(resolve("docs")))];
+const files = await markdownFiles(resolve("."));
 const failures = [];
 
 for (const file of files) {

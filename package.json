@@ -19,7 +19,9 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "check": "npm run typecheck && npm run lint && npm test && npm run build"
+    "check:docs": "node scripts/check-doc-links.mjs",
+    "check:secrets": "node scripts/check-secrets.mjs",
+    "check": "npm run typecheck && npm run lint && npm test && npm run build && npm run check:docs && npm run check:secrets"
   },
   "dependencies": {
     "@fastify/multipart": "^9.2.1",

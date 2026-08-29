@@ -45,7 +45,7 @@ The built React assets and API share one container and origin. This avoids cross
 
 `POST /api/exports` accepts the original PDF again, the signed token, and corrections keyed by existing block ID. The server verifies the token and SHA-256 document hash, rejects unknown IDs, and rebuilds the PDF without another OCR or Gemini call.
 
-The exporter rasterizes or reuses each source page, covers recognized text regions conservatively, draws translated text using bundled Noto fonts, and adds a matching invisible text layer. Text first wraps within its original box, then may shrink to 70% of the inferred source size. Remaining overflow requires review.
+The exporter rasterizes each source page, covers recognized text regions conservatively, and draws searchable translated text using bundled Noto fonts. Text first wraps within its original box, then may shrink to 50% of the inferred source size with a 3.5-point floor. Remaining overflow requires review.
 
 ## Security and privacy boundaries
 
@@ -84,8 +84,8 @@ Application counters and budget alerts are guardrails, not provider billing caps
 |---|---|---|
 | `GET /api/health` | Implemented | Returns non-secret service health |
 | `GET /api/config` | Implemented | Returns non-secret limits, languages, and privacy notice |
-| `POST /api/translations` | Implemented; live providers unverified | Validates, extracts/OCRs, translates, and streams review data |
-| `POST /api/exports` | Implemented | Verifies source/session/corrections and returns a PDF |
+| `POST /api/translations` | Implemented and production-verified | Validates, extracts/OCRs, translates, and streams review data |
+| `POST /api/exports` | Implemented and production-verified | Verifies source/session/corrections and returns a PDF |
 
 The shared contracts define normalized boxes, approximate text style, translation blocks, page layouts, sessions, correction maps, progress events, and public configuration. API documentation must be updated if implementation changes those schemas.
 
