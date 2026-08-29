@@ -52,3 +52,18 @@ test("keeps the owner dashboard locked by default", async ({ page }) => {
   await expect(page.getByLabel("Admin access key")).toHaveAttribute("type", "password");
   await expect(page.getByText("No key is saved in local storage, cookies, source code, or analytics.")).toBeVisible();
 });
+
+test("enables owner testing only for the current tab", async ({ page }) => {
+  test.skip(Boolean(process.env.PLAYWRIGHT_BASE_URL), "The production admin key is intentionally unavailable to browser CI.");
+  await page.goto("/#/admin");
+  await page.getByLabel("Admin access key").fill("e2e-owner-access-key-that-is-safe-and-local");
+  await page.getByRole("button", { name: "Open dashboard" }).click();
+  await expect(page.getByRole("button", { name: "Enable owner testing" })).toBeVisible();
+  await page.getByRole("button", { name: "Enable owner testing" }).click();
+  await expect(page.getByRole("button", { name: "Owner testing" })).toBeVisible();
+  await expect(page.getByText("Owner testing · daily limit bypassed")).toBeVisible();
+
+  await page.reload();
+  await expect(page.getByRole("button", { name: "Owner testing" })).toHaveCount(0);
+  await expect(page.getByText("3 jobs or 45 pages per day")).toBeVisible();
+});

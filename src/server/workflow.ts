@@ -38,6 +38,7 @@ export interface TranslationInput {
   targetLanguage: string;
   requesterIp: string;
   requestId?: string;
+  bypassDailyQuota?: boolean;
 }
 
 export async function translatePdf(
@@ -56,7 +57,9 @@ export async function translatePdf(
   emit({ type: "progress", stage: "validating", message: "Checking PDF and usage limits...", progress: 5 });
   const inspection = await inspectPdf(input.file, config);
   const identity = hashIdentity(input.requesterIp, services.ipSalt);
-  await services.quota.reserveDaily(identity, inspection.pageCount, services.now());
+  if (!input.bypassDailyQuota) {
+    await services.quota.reserveDaily(identity, inspection.pageCount, services.now());
+  }
 
   emit({ type: "progress", stage: "extracting", message: inspection.scannedPageNumbers.length
     ? "Reading embedded text and recognizing scanned pages..."

@@ -23,10 +23,11 @@ The Gemini free tier currently states that submitted content may be used to impr
 | Salted requester hash | Daily abuse limits | Counter records only; no raw IP stored |
 | Job, page, OCR, export, and error counts | Quota, reliability, and owner dashboard | Daily/monthly aggregate Firestore counter records |
 | Request ID, stage, duration, status class | Production diagnosis | Cloud logging retention configured by the project owner |
+| Admin access key during owner testing | Authenticate the current translation request | Current tab memory and HTTPS request only; never stored or logged |
 
 The app does not require an account, save a document history, or request Google Drive, Gmail, or Calendar access in the MVP.
 
-The private owner dashboard reads aggregate counters only. It does not expose requester hashes or retain PDF names, document text, translations, correction content, IP addresses, or session tokens. A submitted dashboard access key remains in the current browser tab's memory and is not written to local storage or cookies.
+The private owner dashboard reads aggregate counters only. It does not expose requester hashes or retain PDF names, document text, translations, correction content, IP addresses, or session tokens. A submitted dashboard access key remains in the current browser tab's React memory and is not written to local storage or cookies. If owner testing is enabled, that key also authenticates translation requests in the same tab and is cleared by refresh or the owner-mode control.
 
 ## Logging rules
 

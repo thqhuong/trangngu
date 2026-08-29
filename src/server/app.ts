@@ -21,6 +21,33 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
   });
   const services = createBackendServices(config, serviceOverrides);
   const failedAdminAttempts = new Map<string, { count: number; resetAt: number }>();
+  const authorizeOwner = (requesterIp: string, authorization: string, required: boolean): boolean => {
+    if (!authorization) {
+      if (required) throw new AppError("ADMIN_UNAUTHORIZED", "The admin access key is required.", 401);
+      return false;
+    }
+    if (!config.adminDashboardToken) {
+      throw new AppError("ADMIN_DISABLED", "Owner access is not configured on this deployment.", 503);
+    }
+    const nowMs = Date.now();
+    const attempt = failedAdminAttempts.get(requesterIp);
+    if (attempt && attempt.resetAt > nowMs && attempt.count >= 5) {
+      throw new AppError("ADMIN_RATE_LIMITED", "Too many attempts. Try again later.", 429);
+    }
+    if (attempt && attempt.resetAt <= nowMs) failedAdminAttempts.delete(requesterIp);
+
+    const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
+    if (!token || token.length > 256 || !secureStringEqual(token, config.adminDashboardToken)) {
+      const current = failedAdminAttempts.get(requesterIp);
+      failedAdminAttempts.set(requesterIp, {
+        count: (current?.resetAt ?? 0) > nowMs ? current!.count + 1 : 1,
+        resetAt: (current?.resetAt ?? 0) > nowMs ? current!.resetAt : nowMs + 15 * 60_000,
+      });
+      throw new AppError("ADMIN_UNAUTHORIZED", "The admin access key is not valid.", 401);
+    }
+    failedAdminAttempts.delete(requesterIp);
+    return true;
+  };
   const recordMetric = async (delta: MetricDelta) => {
     try {
       await services.telemetry.record(delta, services.now());
@@ -64,28 +91,12 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
 
   app.get("/api/admin/stats", async (request, reply) => {
     reply.header("cache-control", "no-store");
-    if (!config.adminDashboardToken) {
-      return reply.status(503).send({ error: { code: "ADMIN_DISABLED", message: "The admin dashboard is not configured." } });
+    try {
+      authorizeOwner(request.ip, request.headers.authorization ?? "", true);
+    } catch (error) {
+      const safe = toAppError(error);
+      return reply.status(safe.statusCode).send({ error: { code: safe.code, message: safe.message } });
     }
-
-    const nowMs = Date.now();
-    const attempt = failedAdminAttempts.get(request.ip);
-    if (attempt && attempt.resetAt > nowMs && attempt.count >= 5) {
-      return reply.status(429).send({ error: { code: "ADMIN_RATE_LIMITED", message: "Too many attempts. Try again later." } });
-    }
-    if (attempt && attempt.resetAt <= nowMs) failedAdminAttempts.delete(request.ip);
-
-    const authorization = request.headers.authorization ?? "";
-    const token = authorization.startsWith("Bearer ") ? authorization.slice(7) : "";
-    if (!token || token.length > 256 || !secureStringEqual(token, config.adminDashboardToken)) {
-      const current = failedAdminAttempts.get(request.ip);
-      failedAdminAttempts.set(request.ip, {
-        count: (current?.resetAt ?? 0) > nowMs ? current!.count + 1 : 1,
-        resetAt: (current?.resetAt ?? 0) > nowMs ? current!.resetAt : nowMs + 15 * 60_000,
-      });
-      return reply.status(401).send({ error: { code: "ADMIN_UNAUTHORIZED", message: "The admin access key is not valid." } });
-    }
-    failedAdminAttempts.delete(request.ip);
 
     const periodDays = 30;
     const now = services.now();
@@ -139,6 +150,7 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
     const emit = (event: ProgressEvent) => reply.raw.write(`${JSON.stringify(progressEventSchema.parse(event))}\n`);
     await recordMetric({ jobsReceived: 1 });
     try {
+      const ownerBypass = authorizeOwner(request.ip, request.headers.authorization ?? "", false);
       const multipartPayload = await readMultipart(request, config.maxPdfBytes);
       const session = await translatePdf({
         file: multipartPayload.file,
@@ -146,6 +158,7 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
         targetLanguage: multipartPayload.fields.targetLanguage ?? "",
         requesterIp: request.ip,
         requestId,
+        bypassDailyQuota: ownerBypass,
       }, config, services, emit);
       await recordMetric({
         jobsCompleted: 1,

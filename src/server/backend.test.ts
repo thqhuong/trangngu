@@ -112,6 +112,35 @@ describe("public API", () => {
     expect(response.body).not.toContain("ZodError");
     await app.close();
   });
+
+  it("lets an authenticated owner bypass only the per-requester daily limit", async () => {
+    const ownerToken = "owner-access-key-that-is-long-enough";
+    const ownerConfig = loadConfig({
+      NODE_ENV: "test",
+      SESSION_SIGNING_SECRET: "s".repeat(32),
+      IP_HASH_SALT: "i".repeat(16),
+      ADMIN_DASHBOARD_TOKEN: ownerToken,
+      DAILY_JOB_LIMIT: "1",
+      DAILY_PAGE_LIMIT: "1",
+    });
+    const app = await buildApp(ownerConfig, { translator });
+    const source = await fixturePdf();
+    const send = (authorization?: string) => {
+      const body = multipart({ targetLanguage: "vi" }, source);
+      return app.inject({
+        method: "POST",
+        url: "/api/translations",
+        headers: { "content-type": body.contentType, ...(authorization ? { authorization } : {}) },
+        payload: body.payload,
+      });
+    };
+
+    expect((await send()).body).toContain('"type":"ready"');
+    expect((await send(`Bearer ${ownerToken}`)).body).toContain('"type":"ready"');
+    expect((await send()).body).toContain('"code":"DAILY_JOB_LIMIT"');
+    expect((await send("Bearer incorrect-owner-access-key")).body).toContain('"code":"ADMIN_UNAUTHORIZED"');
+    await app.close();
+  });
 });
 
 describe("PDF workflow", () => {

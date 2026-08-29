@@ -76,7 +76,7 @@ function PagePreview({ document, pageNumber, blocks, corrections, adjustments, f
   </div>;
 }
 
-function TranslatorApp() {
+function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey: string; onDisableOwnerMode: () => void }) {
   const [locale, setLocale] = useState<Locale>("en");
   const [config, setConfig] = useState(DEFAULT_CONFIG);
   const [phase, setPhase] = useState<Phase>("upload");
@@ -147,7 +147,7 @@ function TranslatorApp() {
     try {
       const ready = await streamTranslation(file, targetLanguage, (event: ProgressEvent) => {
         if (event.type === "progress") setProgress({ stage: event.stage, value: event.progress });
-      }, controller.signal);
+      }, controller.signal, ownerAccessKey);
       setSession(ready); setCorrections({}); setBoxAdjustments({}); setFontSizeAdjustments({}); setExcludedBlocks({}); setPageNumber(1); setPhase("review");
     } catch (error) {
       if (controller.signal.aborted) { setPhase("upload"); return; }
@@ -205,6 +205,9 @@ function TranslatorApp() {
         <span className="brand-mark" aria-hidden="true"><Languages size={22} strokeWidth={2.2} /></span><span>TrangNgữ</span><span className="brand-beta">BETA</span>
       </a>
       <div className="header-actions"><span className="header-privacy"><LockKeyhole size={15} /> {t.footerPrivacy}</span>
+        {ownerAccessKey && <button type="button" className="owner-mode-badge" onClick={onDisableOwnerMode} title={t.disableOwnerMode}>
+          <ShieldCheck size={14} /> {t.ownerMode}
+        </button>}
         <div className="locale-toggle" role="group" aria-label="Interface language">
           <button type="button" className={locale === "en" ? "is-active" : ""} onClick={() => setLocale("en")} aria-pressed={locale === "en"}>EN</button>
           <button type="button" className={locale === "vi" ? "is-active" : ""} onClick={() => setLocale("vi")} aria-pressed={locale === "vi"}>VI</button>
@@ -236,7 +239,7 @@ function TranslatorApp() {
                 {config.languages.map((option) => <option key={option.code} value={option.code}>{option.nativeLabel} · {option.label}</option>)}</select></div>
               <button className="primary-button" type="button" disabled={!file || pdf.loading || !pdf.document || Boolean(fileError)} onClick={() => void start()}>
                 <span>{pdf.loading ? t.preparingUpload : t.translate}</span>{pdf.loading ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}
-              </button><span className="usage-limit"><ShieldCheck size={15} /> {t.dailyLimit}</span>
+              </button><span className={`usage-limit${ownerAccessKey ? " owner-active" : ""}`}><ShieldCheck size={15} /> {ownerAccessKey ? t.ownerLimitBypass : t.dailyLimit}</span>
             </div>
           </div><aside className="privacy-note"><ShieldCheck size={21} /><div><strong>{t.privacyTitle}</strong><p>{t.privacyBody}</p><b>{t.privacyWarning}</b></div></aside></div>
         </section>
@@ -327,13 +330,17 @@ function TranslatorApp() {
 
 export function App() {
   const [adminRoute, setAdminRoute] = useState(() => window.location.hash === "#/admin");
+  const [ownerAccessKey, setOwnerAccessKey] = useState("");
   useEffect(() => {
     const onHashChange = () => setAdminRoute(window.location.hash === "#/admin");
     window.addEventListener("hashchange", onHashChange);
     return () => window.removeEventListener("hashchange", onHashChange);
   }, []);
   if (adminRoute) {
-    return <AdminDashboard onBack={() => { window.location.hash = ""; }} />;
+    return <AdminDashboard onBack={() => { window.location.hash = ""; }} onEnableOwnerMode={(accessKey) => {
+      setOwnerAccessKey(accessKey);
+      window.location.hash = "";
+    }} />;
   }
-  return <TranslatorApp />;
+  return <TranslatorApp ownerAccessKey={ownerAccessKey} onDisableOwnerMode={() => setOwnerAccessKey("")} />;
 }

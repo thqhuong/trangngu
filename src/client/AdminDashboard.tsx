@@ -11,7 +11,7 @@ function formatNumber(value: number) {
   return new Intl.NumberFormat("en-US").format(value);
 }
 
-export function AdminDashboard({ onBack }: { onBack: () => void }) {
+export function AdminDashboard({ onBack, onEnableOwnerMode }: { onBack: () => void; onEnableOwnerMode: (accessKey: string) => void }) {
   const [accessKey, setAccessKey] = useState("");
   const [stats, setStats] = useState<AdminStats | null>(null);
   const [loading, setLoading] = useState(false);
@@ -81,6 +81,9 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
       <button type="button" className="admin-back" onClick={onBack}><ArrowLeft size={17} /> Back to TrangNgữ</button>
       <div className="admin-topbar-actions">
         <span><CheckCircle2 size={15} /> Aggregated counters only</span>
+        <button type="button" className="admin-owner-mode" onClick={() => onEnableOwnerMode(accessKey)}>
+          <Gauge size={16} /> Enable owner testing
+        </button>
         <button type="button" className="admin-refresh" onClick={() => void load(accessKey)} disabled={loading}>
           <RefreshCw className={loading ? "spin" : ""} size={16} /> Refresh
         </button>
@@ -124,7 +127,7 @@ export function AdminDashboard({ onBack }: { onBack: () => void }) {
           <div className="admin-panel-heading"><div><span>Cost guardrail</span><h2 id="allowance-title">Application allowances</h2></div><ShieldCheck size={20} /></div>
           <div className="allowance-meter"><div><span>Monthly OCR pages</span><strong>{Math.round(ocrPercentage)}%</strong></div><i><b style={{ width: `${ocrPercentage}%` }} /></i></div>
           <ul><li><span>Pages per job</span><b>{stats.limits.maxPagesPerJob}</b></li><li><span>Jobs per requester / day</span><b>{stats.limits.dailyJobLimitPerRequester}</b></li><li><span>Pages per requester / day</span><b>{stats.limits.dailyPageLimitPerRequester}</b></li></ul>
-          <small>Application limits reduce accidental usage; they are not provider billing caps.</small>
+          <small>Application limits reduce accidental usage; they are not provider billing caps. Owner testing bypasses only the daily per-requester job/page limits; the monthly OCR cap and provider quotas still apply.</small>
         </section>
 
         <section className="admin-panel reliability-panel" aria-labelledby="reliability-title">

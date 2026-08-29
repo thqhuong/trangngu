@@ -18,10 +18,11 @@ All notable changes to TrangNgữ are recorded here.
 - Per-block point-size controls and a keep-original/restore action that leaves excluded source regions untouched in exported PDFs.
 - OCR-aware initial typography sizing for dense CJK paragraphs and a homepage-logo favicon.
 - Smaller Gemini batches for dense, image-only music PDFs so schema-valid output is not truncated by the response token ceiling.
+- Admin-key owner testing that bypasses only daily per-requester job/page limits in the current tab while preserving monthly OCR and provider cost guardrails.
 
 ### Verified
 
-- Deployed `trangngu-00008-n48` publicly in `asia-southeast1` with 100% traffic.
+- Deployed `trangngu-00009-45w` publicly in `asia-southeast1` with 100% traffic.
 - Completed the two-page mixed demo through real OCR, translation, review, and export.
 - Passed the local quality gate and desktop/mobile production browser checks.
-- Exercised the supplied 15-page image-only music PDF in production; the first run exposed and informed the dense-output batching fix, while the post-fix rerun remains pending the normal daily-quota reset.
+- Exercised the supplied 15-page image-only music PDF in production. Owner mode successfully bypassed the daily requester guardrail and reached OCR/Gemini; the model response still failed strict validation, so a successful output for this fixture remains open work.

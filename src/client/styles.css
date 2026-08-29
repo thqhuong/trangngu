@@ -49,6 +49,7 @@ main { flex: 1; }
 .brand-beta { font-size: 9px; letter-spacing: .12em; border: 1px solid var(--line-strong); color: var(--muted); border-radius: 999px; padding: 3px 6px; margin-left: 2px; }
 .header-actions, .header-privacy { display: flex; align-items: center; gap: 16px; }
 .header-privacy { gap: 6px; color: var(--muted); font-size: 12px; }
+.owner-mode-badge { min-height: 32px; padding: 0 10px; border: 1px solid #8eb29c; border-radius: 8px; background: var(--green-soft); color: var(--green); display: inline-flex; align-items: center; gap: 6px; cursor: pointer; font-size: 10px; font-weight: 700; }
 .locale-toggle { display: flex; padding: 3px; background: #e8e7de; border-radius: 9px; }
 .locale-toggle button { min-width: 40px; height: 32px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; letter-spacing: .06em; }
 .locale-toggle button.is-active { background: var(--paper); color: var(--ink); box-shadow: 0 1px 4px rgba(29, 37, 32, .12); }
@@ -101,6 +102,7 @@ main { flex: 1; }
 .secondary-button:hover { border-color: var(--ink); }
 .usage-limit { grid-column: 1 / -1; justify-self: end; color: var(--muted); display: flex; align-items: center; gap: 5px; font-size: 10px; }
 .usage-limit svg { color: var(--green); }
+.usage-limit.owner-active { color: var(--green); font-weight: 700; }
 .privacy-note { display: flex; gap: 12px; margin: 14px 10px 0; padding: 14px 10px 0; color: var(--muted); font-size: 10px; line-height: 1.55; }
 .privacy-note > svg { color: var(--green); flex: none; margin-top: 1px; }
 .privacy-note strong { color: var(--ink); font-size: 11px; }
@@ -291,10 +293,11 @@ main { flex: 1; }
 .admin-shell { min-height: 100vh; background: #f1f1e9; color: var(--ink); }
 .admin-topbar { min-height: 64px; padding: 10px max(24px, calc((100vw - 1280px) / 2)); display: flex; align-items: center; justify-content: space-between; gap: 20px; border-bottom: 1px solid var(--line); background: rgba(255, 254, 250, .88); backdrop-filter: blur(12px); position: sticky; top: 0; z-index: 20; }
 .admin-topbar > span, .admin-topbar-actions > span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 10px; }
-.admin-back, .admin-refresh, .admin-signout { border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; }
+.admin-back, .admin-owner-mode, .admin-refresh, .admin-signout { border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; gap: 7px; font-size: 10px; font-weight: 700; }
 .admin-back { color: var(--green); padding: 8px 0; }
 .admin-topbar-actions { display: flex; align-items: center; gap: 14px; }
 .admin-refresh { min-height: 36px; padding: 0 12px; border: 1px solid var(--line-strong); border-radius: 8px; background: white; }
+.admin-owner-mode { min-height: 36px; padding: 0 12px; border: 1px solid #8eb29c; border-radius: 8px; background: var(--green-soft); color: var(--green); }
 .admin-refresh:disabled { opacity: .55; }
 .admin-signout { color: #973b2d; padding: 9px; }
 .admin-login-page { min-height: calc(100vh - 64px); padding: 40px 16px; display: grid; place-items: center; }
@@ -392,6 +395,7 @@ main { flex: 1; }
 @media (max-width: 700px) {
   .site-header { height: 64px; padding: 0 16px; }
   .header-privacy { display: none; }
+  .owner-mode-badge { max-width: 132px; line-height: 1.15; }
   .brand-beta { display: none; }
   .hero { padding: 44px 16px 55px; gap: 38px; }
   .hero h1 { font-size: clamp(46px, 14vw, 66px); }
@@ -458,6 +462,7 @@ main { flex: 1; }
   .sample-corner-label.is-translated { left: 9px; }
   .admin-topbar-actions { gap: 4px; }
   .admin-refresh { padding-inline: 8px; }
+  .admin-owner-mode { padding-inline: 8px; }
   .admin-login-card { padding: 36px 20px; }
   .admin-login-card h1 { font-size: 38px; }
   .admin-kpis { grid-template-columns: 1fr; }

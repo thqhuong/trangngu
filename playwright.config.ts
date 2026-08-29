@@ -21,7 +21,11 @@ export default defineConfig({
     : {
         command: "npm run build && npm start",
         url: `http://127.0.0.1:${localApiPort}/api/health`,
-        env: { NODE_ENV: "production", PORT: localApiPort },
+        env: {
+          NODE_ENV: "production",
+          PORT: localApiPort,
+          ADMIN_DASHBOARD_TOKEN: "e2e-owner-access-key-that-is-safe-and-local",
+        },
         reuseExistingServer: !process.env.CI,
         timeout: 180_000,
       },

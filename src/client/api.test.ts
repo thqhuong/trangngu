@@ -46,7 +46,7 @@ describe("streamTranslation", () => {
   it("parses NDJSON events split across network chunks", async () => {
     const progress = JSON.stringify({ type: "progress", stage: "extracting", message: "Reading", progress: 35 });
     const ready = JSON.stringify(readyEvent);
-    vi.spyOn(globalThis, "fetch").mockResolvedValue(streamedResponse([
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(streamedResponse([
       `${progress}\n${ready.slice(0, 51)}`,
       `${ready.slice(51)}\n`,
     ]));
@@ -56,10 +56,15 @@ describe("streamTranslation", () => {
       new File(["%PDF"], "guide.pdf", { type: "application/pdf" }),
       "vi",
       (event) => events.push(event.type),
+      undefined,
+      "owner-access-key-that-is-long-enough",
     );
 
     expect(events).toEqual(["progress", "ready"]);
     expect(session.pages[0]?.blocks[0]?.translatedText).toBe("An toàn mùa lũ");
+    expect(fetchMock).toHaveBeenCalledWith("/api/translations", expect.objectContaining({
+      headers: expect.objectContaining({ Authorization: "Bearer owner-access-key-that-is-long-enough" }),
+    }));
   });
 
   it("surfaces structured stream errors with request IDs", async () => {

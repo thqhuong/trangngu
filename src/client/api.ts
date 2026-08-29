@@ -76,6 +76,7 @@ export async function streamTranslation(
   targetLanguage: LanguageCode,
   onEvent: (event: ProgressEvent) => void,
   signal?: AbortSignal,
+  ownerAccessKey?: string,
 ): Promise<TranslationSession> {
   const form = new FormData();
   form.set("file", file);
@@ -84,7 +85,10 @@ export async function streamTranslation(
   const response = await fetch("/api/translations", {
     method: "POST",
     body: form,
-    headers: { Accept: "application/x-ndjson" },
+    headers: {
+      Accept: "application/x-ndjson",
+      ...(ownerAccessKey ? { Authorization: `Bearer ${ownerAccessKey}` } : {}),
+    },
     signal,
   });
 

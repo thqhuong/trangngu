@@ -58,6 +58,7 @@ The exporter rasterizes each source page, covers the original recognized text re
 - Firestore stores daily/monthly counters, not PDFs or translated content.
 - The private admin endpoint reads aggregate daily operational metrics; it never returns requester hashes or document-level records.
 - The dashboard bearer token is compared in constant time and remains only in the page's in-memory React state.
+- The same bearer token may enable owner testing for translations in that tab. Only the daily per-requester reservation is skipped; file/page validation, monthly OCR reservation, provider quotas, and telemetry remain active. Missing or invalid owner credentials never weaken the public quota path.
 - Raw IP addresses are salted and hashed before counter storage.
 - The browser can replace text, change point size, adjust width/height, or keep the original only for signed block IDs. The server rejects movement, unknown IDs, malformed values, and any resized box that would cross a page boundary.
 - Timeouts and one transient retry bound provider work. Validation, safety, and quota failures are not retried.
@@ -78,7 +79,7 @@ Application counters and budget alerts are guardrails, not provider billing caps
 
 - **Synchronous work over a queue:** simpler demo and no stored files, but jobs stop at 15 pages and can approach the 600-second request timeout.
 - **Fixed-layout output over editable PDF reconstruction:** more faithful visual structure, but the result is not a design-source document.
-- **Hashed IP allowance over accounts:** no sign-up friction, but shared networks can share a limit and users can change networks.
+- **Hashed IP allowance over accounts:** no sign-up friction, but shared networks can share a limit and users can change networks. An explicit admin-key owner mode supports controlled production testing without adding a public bypass.
 - **Raster background plus text layer over direct PDF object editing:** works across digital and scanned inputs, but may increase output size and cannot perfectly reconstruct complex backgrounds.
 - **Free-tier Gemini over paid data handling:** lowers cost, but the official free-tier disclosure says content may be used to improve Google products, so sensitive documents must be refused by policy and warning.
 

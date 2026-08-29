@@ -35,6 +35,8 @@ The homepage includes a pre-tested, balanced one-page sample so a visitor can dr
 
 Embedded-text pages do not consume the Document AI scanned-page counter. A salted hash, not a raw IP address, identifies an unauthenticated requester for abuse controls. This is a pragmatic MVP limit, not a durable user identity.
 
+The owner can authenticate through the private dashboard and enable testing mode for the current browser tab. Owner mode bypasses only the three-job/45-page daily requester counters; it does not change per-job limits, the monthly OCR guardrail, provider quotas, Cloud Run scaling, or the Gemini tier.
+
 ## MVP exclusions
 
 - Password-protected or encrypted PDFs
@@ -64,6 +66,7 @@ The app should flag content it cannot fit safely instead of silently damaging th
 - One real Gemini request and one real Document AI request pass locally and after authorized Cloud Run deployment.
 - The stable demo finishes in under three minutes without a mocked AI response.
 - The owner can inspect aggregate pages, jobs, exports, OCR allowance, failures, and observed Gemini quota errors without exposing document content.
+- An authenticated owner can exceed the public daily requester allowance for production testing, while an unauthenticated or invalid-key request remains subject to the normal limits.
 
 ## Current implementation status
 

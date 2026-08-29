@@ -13,10 +13,10 @@
 - Public app: [https://trangngu-6m6au2eisq-as.a.run.app](https://trangngu-6m6au2eisq-as.a.run.app)
 - Private owner dashboard: [https://trangngu-6m6au2eisq-as.a.run.app/#/admin](https://trangngu-6m6au2eisq-as.a.run.app/#/admin)
 - Google Cloud project: `trangngu-ai-riser-2026` (separate from Doc2Do)
-- Cloud Run service/revision: `trangngu` / `trangngu-00008-n48`, with 100% of traffic
+- Cloud Run service/revision: `trangngu` / `trangngu-00009-45w`, with 100% of traffic
 - Region and limits: `asia-southeast1`, minimum 0, maximum 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds
 - Providers: Enterprise Document OCR processor `e0a3a06f46f66a72` and free-tier `gemini-3.5-flash-lite`
-- Verification: public shell, health, favicon, sample assets, and protected dashboard passed; 33 automated tests passed; 10 production Playwright checks passed across desktop Chromium and Pixel 7; point-size, keep-original, drag-resize, filtering, and export geometry passed local browser/integration tests. The previously verified real two-page Gemini/OCR/export path remains unchanged. A first real 15-page music-PDF run exposed structured-output truncation and led to smaller Gemini batches; its corrected production rerun is pending the normal UTC daily-quota reset and is not claimed as passed yet.
+- Verification: public shell, health, favicon, sample assets, and protected dashboard passed; 34 automated tests passed; 12 local Playwright checks passed across desktop Chromium and Pixel 7, including the owner-mode lifecycle; 10 production checks passed and the two secret-dependent owner tests were intentionally skipped. Point-size, keep-original, drag-resize, filtering, owner authorization, and export geometry passed browser/integration tests. The real owner-authorized 15-page music PDF passed the daily guardrail and reached OCR/Gemini, but still ended with a safely rejected `UNSAFE_RESPONSE`; a successful output for that fixture is not claimed yet.
 
 The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%-forecast thresholds. This is an alert, not a spending cap. The application additionally reserves at most 900 OCR pages per month.
 
@@ -31,6 +31,7 @@ The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%
 - Export creates a fixed-layout PDF with a searchable translated text layer.
 - The homepage includes a rights-safe, visually balanced before/after PDF sample with reveal and side-by-side views, without a download prompt competing with the main workflow.
 - A private owner dashboard at `/#/admin` reports aggregate jobs, translated pages, exports, OCR allowance, reliability, and observed Gemini quota errors.
+- An authenticated owner-testing mode can bypass the daily requester job/page limits in the current tab; it never bypasses the monthly OCR cap, file limits, or provider quotas.
 - No account required and no original document storage by TrangNgữ.
 - 12 target languages: Vietnamese, English, Simplified Chinese, Japanese, Korean, Thai, Indonesian, French, German, Spanish, Portuguese, and Hindi.
 
@@ -162,6 +163,8 @@ PLAYWRIGHT_BASE_URL=https://YOUR_CLOUD_RUN_URL npm run test:e2e
 Then translate the pre-tested scan fixture through the real production Gemini and Document AI path, download and inspect the result, confirm 100% traffic on the latest revision, and check sanitized Cloud Run logs.
 
 The owner dashboard is available at `https://YOUR_CLOUD_RUN_URL/#/admin`. Its access key is loaded into Cloud Run from `trangngu-admin-dashboard-token`; the browser keeps a submitted key only in the current tab's memory. Gemini's Developer API does not expose an authoritative remaining free-tier quota value, so the dashboard reports the configured model, observed successes and quota errors, and links to the Google quota console instead of inventing a remaining count.
+
+For owner testing beyond the public daily allowance, open the dashboard, enter the existing admin key, and choose **Enable owner testing**. The app returns to the translator with an owner badge. The key is sent only as an HTTPS authorization header, remains in React memory, and is cleared by refreshing the tab or clicking the badge. This mode skips only the daily per-requester counters; the 15-page/25 MB limits, 900-page monthly OCR guardrail, Gemini/Document AI quotas, and all security validation remain enforced.
 
 ## Demo and submission
 

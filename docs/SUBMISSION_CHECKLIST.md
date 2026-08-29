@@ -17,6 +17,7 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Desktop and mobile layouts pass.
 - [x] Homepage sample uses a balanced layout and supports reveal and side-by-side comparison plus keyboard input; distracting sample download buttons are intentionally absent.
 - [x] Admin dashboard exposes aggregate counters only and rejects unauthenticated requests.
+- [x] Owner testing accepts the configured admin key, bypasses only daily requester limits, clears on refresh/lock, and leaves monthly/provider limits active.
 
 ## Engineering evidence
 
@@ -43,8 +44,8 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Latest ready revision receives 100% of traffic.
 - [x] `/api/health`, homepage, mobile/desktop, export, and real provider path pass against the public URL.
 - [x] Public URL: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [x] Verified revision and test date: `trangngu-00008-n48` on 2026-08-29 (shell, assets, health, locked admin boundary, desktop/mobile)
-- [ ] Re-run the supplied 15-page music PDF after the UTC daily-quota reset; the post-fix real provider result is not yet claimed as passed.
+- [x] Verified revision and test date: `trangngu-00009-45w` on 2026-08-29 (shell, assets, health, locked admin boundary, desktop/mobile)
+- [ ] Resolve the supplied 15-page music PDF's `UNSAFE_RESPONSE`; owner mode passed the daily guardrail and reached the real providers, but no successful output is claimed.
 
 ## Privacy and cost
 
