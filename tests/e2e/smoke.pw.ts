@@ -61,10 +61,11 @@ test("enables owner testing only for the current tab", async ({ page }) => {
   const ownerPanel = page.locator(".owner-testing-panel");
   await expect(ownerPanel.getByRole("heading", { name: "Translate beyond today’s public limit" })).toBeVisible();
   await ownerPanel.getByRole("button", { name: "Enable owner testing" }).click();
-  await expect(page.getByRole("button", { name: "Owner testing" })).toBeVisible();
+  await expect(page).toHaveURL(/\/#?$/);
+  await expect(page.locator(".owner-mode-badge")).toBeVisible();
   await expect(page.getByText("Owner testing · daily limit bypassed")).toBeVisible();
 
   await page.reload();
-  await expect(page.getByRole("button", { name: "Owner testing" })).toHaveCount(0);
+  await expect(page.locator(".owner-mode-badge")).toHaveCount(0);
   await expect(page.getByText("3 jobs or 45 pages per day")).toBeVisible();
 });
