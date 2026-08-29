@@ -13,10 +13,10 @@
 - Public app: [https://trangngu-6m6au2eisq-as.a.run.app](https://trangngu-6m6au2eisq-as.a.run.app)
 - Private owner dashboard: [https://trangngu-6m6au2eisq-as.a.run.app/#/admin](https://trangngu-6m6au2eisq-as.a.run.app/#/admin)
 - Google Cloud project: `trangngu-ai-riser-2026` (separate from Doc2Do)
-- Cloud Run service/revision: `trangngu` / `trangngu-00006-ltv`, with 100% of traffic
+- Cloud Run service/revision: `trangngu` / `trangngu-00008-n48`, with 100% of traffic
 - Region and limits: `asia-southeast1`, minimum 0, maximum 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds
 - Providers: Enterprise Document OCR processor `e0a3a06f46f66a72` and free-tier `gemini-3.5-flash-lite`
-- Verification: public shell, health, sample assets, and protected dashboard passed; 21 automated tests passed; 10 production Playwright checks passed across desktop Chromium and Pixel 7; drag-resize/reset was exercised locally on desktop and mobile and resized export geometry passed integration tests; the previously verified real two-page translation/OCR/export path remains unchanged; no error-severity entries were present for the final revision
+- Verification: public shell, health, favicon, sample assets, and protected dashboard passed; 33 automated tests passed; 10 production Playwright checks passed across desktop Chromium and Pixel 7; point-size, keep-original, drag-resize, filtering, and export geometry passed local browser/integration tests. The previously verified real two-page Gemini/OCR/export path remains unchanged. A first real 15-page music-PDF run exposed structured-output truncation and led to smaller Gemini batches; its corrected production rerun is pending the normal UTC daily-quota reset and is not claimed as passed yet.
 
 The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%-forecast thresholds. This is an alert, not a spending cap. The application additionally reserves at most 900 OCR pages per month.
 
@@ -26,7 +26,8 @@ The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%
 - Three jobs and **45 pages per requester per day**.
 - Embedded-text extraction first; Google Cloud Document AI OCR for scan-like pages.
 - Gemini translates identified text blocks on the server with structured, validated JSON.
-- A review workspace keeps blocks aligned with the source page, flags uncertain or overflowing text, and lets users resize each translated text box by dragging its corner or using precise width and height controls.
+- A review workspace keeps blocks aligned with the source page, flags uncertain or overflowing text, and lets users resize each translated text box, change its point size, or keep the original region untouched.
+- Music notation, chord symbols such as `Bbmaj7`, page numbers, URLs, and similar technical tokens are filtered before Gemini; the model is also instructed to preserve any remaining non-translatable block byte-for-byte.
 - Export creates a fixed-layout PDF with a searchable translated text layer.
 - The homepage includes a rights-safe, visually balanced before/after PDF sample with reveal and side-by-side views, without a download prompt competing with the main workflow.
 - A private owner dashboard at `/#/admin` reports aggregate jobs, translated pages, exports, OCR allowance, reliability, and observed Gemini quota errors.
@@ -133,7 +134,7 @@ node scripts/check-doc-links.mjs
 
 `npm run check` runs type checking, linting, unit tests, and the production build. Playwright runs the shell, health, and horizontal-overflow smoke checks in desktop Chrome and a Pixel 7 viewport.
 
-Before calling the MVP complete, also test representative digital, scanned, and mixed PDFs; invalid/encrypted/oversized inputs; malformed and timed-out model responses; text and box-size corrections; export geometry validation; searchable translated text; and quota handling. Mocked providers do not replace one real Gemini request and one real Document AI request.
+Before calling the MVP complete, also test representative digital, scanned, and mixed PDFs; invalid/encrypted/oversized inputs; malformed and timed-out model responses; text, point-size, keep-original, and box-size corrections; export geometry validation; searchable translated text; and quota handling. Mocked providers do not replace one real Gemini request and one real Document AI request.
 
 ## Privacy and cost warning
 

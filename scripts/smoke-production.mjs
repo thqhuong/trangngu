@@ -59,6 +59,7 @@ try {
   await assertResponse("/sample/trangngu-sample-translated.pdf", expectContentType("application/pdf"));
   await assertResponse("/sample/trangngu-sample-original.png", expectContentType("image/png"));
   await assertResponse("/sample/trangngu-sample-translated.png", expectContentType("image/png"));
+  await assertResponse("/favicon.svg", expectContentType("image/svg+xml"));
   await assertStatus("/api/admin/stats", 401);
   console.log("Public shell, health, sample assets, and the locked admin boundary passed. Run a real PDF translation separately.");
 } catch (error) {

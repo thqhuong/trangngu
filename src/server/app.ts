@@ -3,7 +3,7 @@ import { join } from "node:path";
 import Fastify, { LogController } from "fastify";
 import multipart from "@fastify/multipart";
 import fastifyStatic from "@fastify/static";
-import { adminStatsSchema, boxAdjustmentMapSchema, correctionMapSchema, languageOptions, progressEventSchema, type ProgressEvent } from "../shared/contracts.js";
+import { adminStatsSchema, boxAdjustmentMapSchema, correctionMapSchema, excludedBlockIdsSchema, fontSizeAdjustmentMapSchema, languageOptions, progressEventSchema, type ProgressEvent } from "../shared/contracts.js";
 import type { AppConfig } from "./config.js";
 import { AppError, toAppError } from "./errors.js";
 import { readMultipart } from "./multipart.js";
@@ -175,6 +175,8 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
       const multipartPayload = await readMultipart(request, config.maxPdfBytes);
       let correctionInput: unknown = {};
       let boxAdjustmentInput: unknown = {};
+      let fontSizeAdjustmentInput: unknown = {};
+      let excludedBlockIdsInput: unknown = [];
       if (multipartPayload.fields.corrections) {
         try {
           correctionInput = JSON.parse(multipartPayload.fields.corrections) as unknown;
@@ -189,11 +191,27 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
           throw new AppError("INVALID_CORRECTIONS", "Text-box adjustments must be valid JSON.");
         }
       }
+      if (multipartPayload.fields.fontSizeAdjustments) {
+        try {
+          fontSizeAdjustmentInput = JSON.parse(multipartPayload.fields.fontSizeAdjustments) as unknown;
+        } catch {
+          throw new AppError("INVALID_CORRECTIONS", "Font-size adjustments must be valid JSON.");
+        }
+      }
+      if (multipartPayload.fields.excludedBlockIds) {
+        try {
+          excludedBlockIdsInput = JSON.parse(multipartPayload.fields.excludedBlockIds) as unknown;
+        } catch {
+          throw new AppError("INVALID_CORRECTIONS", "Keep-original choices must be valid JSON.");
+        }
+      }
       const result = await exportPdf({
         file: multipartPayload.file,
         sessionToken: multipartPayload.fields.sessionToken ?? "",
         corrections: correctionMapSchema.parse(correctionInput),
         boxAdjustments: boxAdjustmentMapSchema.parse(boxAdjustmentInput),
+        fontSizeAdjustments: fontSizeAdjustmentMapSchema.parse(fontSizeAdjustmentInput),
+        excludedBlockIds: excludedBlockIdsSchema.parse(excludedBlockIdsInput),
       }, config, services);
       const sourceName = safeFileName(result.session.fileName).replace(/\.pdf$/i, "");
       const outputName = `${sourceName || "document"}-translated.pdf`;
@@ -207,7 +225,7 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
         .send(result.buffer);
     } catch (error) {
       const safe = error instanceof AppError ? error : error instanceof Error && error.name === "ZodError"
-        ? new AppError("INVALID_CORRECTIONS", "One or more text corrections or box sizes are invalid.")
+        ? new AppError("INVALID_CORRECTIONS", "One or more text, size, or keep-original choices are invalid.")
         : toAppError(error);
       await recordMetric({ exportsFailed: 1 });
       app.log.warn({ requestId, route: "exports", stage: "failed", code: safe.code, durationMs: Date.now() - startedAt }, "workflow failed");

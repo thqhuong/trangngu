@@ -17,7 +17,7 @@ The Gemini free tier currently states that submitted content may be used to impr
 |---|---|---|
 | Original PDF | Extraction, OCR, preview, and export | Request lifetime only; temporary files deleted after processing |
 | Extracted and translated text | Translation and review | Request/session response only; not stored in Firestore or logs |
-| User text corrections and text-box width/height choices | Reviewed PDF export | Submitted only with the export request; not stored in Firestore or logs |
+| User text corrections, point-size and text-box width/height choices, and keep-original block IDs | Reviewed PDF export | Submitted only with the export request; not stored in Firestore or logs |
 | Corrected block text | Final export | Export request only |
 | Document SHA-256 hash | Bind export to the reviewed source | Inside the 30-minute signed session, not a document database |
 | Salted requester hash | Daily abuse limits | Counter records only; no raw IP stored |
@@ -45,7 +45,7 @@ Logs must never contain PDFs, extracted or translated text, filenames when avoid
 
 ## User choices and limitations
 
-The upload screen must show the provider/data-use warning before submission. The user can cancel before upload and can download or discard the translated result. There is no server-side saved result to delete.
+The upload screen must show the provider/data-use warning before submission. The user can cancel before upload, keep any selected source region unchanged, and download or discard the translated result. There is no server-side saved result to delete.
 
 The salted-IP limit is not an identity system. People sharing an internet connection can share an allowance, and changing networks may produce another allowance. This limitation should be explained if a user reaches the daily cap.
 

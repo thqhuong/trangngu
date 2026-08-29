@@ -14,7 +14,7 @@ Fastify on Cloud Run
   |-- validation and request ID
   |-- PDF.js embedded-text extraction
   |-- Document AI OCR fallback for scan-like pages
-  |-- block normalization and reading order
+  |-- block normalization, typography estimation, and conservative technical-token filtering
   |-- Gemini structured block translation
   |-- signed review session
   `-- pdf-lib/Poppler/Noto fixed-layout export
@@ -37,13 +37,14 @@ The built React assets and API share one container and origin. This avoids cross
 2. Reserve the job/page allowance in a Firestore transaction before paid-capable provider work.
 3. Extract embedded glyphs where they form a usable text layer. Route only scan-like pages to Enterprise Document OCR.
 4. Normalize text into stable blocks with page-relative geometry, reading order, approximate style, and confidence.
-5. Batch blocks within the selected Gemini model's tested request/output limits.
-6. Treat every source block as untrusted data. Require an exact ID mapping and validate the JSON before use.
-7. Return the review model and an HMAC-signed token that binds the document hash, geometry, target language, and expiry.
+5. Preserve obvious technical-only blocks such as chord symbols, page numbers, URLs, and punctuation without sending them to Gemini.
+6. Batch remaining prose and meaningful labels within the selected Gemini model's tested request/output limits. If Gemini returns a block exactly unchanged, preserve that source region rather than creating an overlay.
+7. Treat every source block as untrusted data. Require an exact ID mapping and validate the JSON before use.
+8. Return the review model and an HMAC-signed token that binds the document hash, geometry, target language, and expiry.
 
 ### Export
 
-`POST /api/exports` accepts the original PDF again, the signed token, text corrections, and optional width/height adjustments keyed by existing block ID. The server verifies the token and SHA-256 document hash, rejects unknown IDs or boxes that escape their signed page, and rebuilds the PDF without another OCR or Gemini call. The browser may resize a box from its signed top-left anchor, but it cannot move the box or create new geometry.
+`POST /api/exports` accepts the original PDF again, the signed token, text corrections, optional width/height and point-size adjustments, and an optional keep-original list keyed by existing block ID. The server verifies the token and SHA-256 document hash, rejects unknown IDs or boxes that escape their signed page, and rebuilds the PDF without another OCR or Gemini call. The browser may resize a box from its signed top-left anchor, but it cannot move the box or create new geometry. A keep-original block is skipped completely, so that source area is neither covered nor redrawn.
 
 The exporter rasterizes each source page, covers the original recognized text regions conservatively, and draws searchable translated text using bundled Noto fonts. Text wraps within the user-reviewed box size, then may shrink to 50% of the inferred source size with a 3.5-point floor. Keeping the erase region tied to the signed source box avoids removing neighboring artwork when a user expands the translated box. Remaining overflow requires review.
 
@@ -58,7 +59,7 @@ The exporter rasterizes each source page, covers the original recognized text re
 - The private admin endpoint reads aggregate daily operational metrics; it never returns requester hashes or document-level records.
 - The dashboard bearer token is compared in constant time and remains only in the page's in-memory React state.
 - Raw IP addresses are salted and hashed before counter storage.
-- The browser can replace text and adjust width/height only for signed block IDs. The server rejects movement, unknown IDs, malformed dimensions, and any resized box that would cross a page boundary.
+- The browser can replace text, change point size, adjust width/height, or keep the original only for signed block IDs. The server rejects movement, unknown IDs, malformed values, and any resized box that would cross a page boundary.
 - Timeouts and one transient retry bound provider work. Validation, safety, and quota failures are not retried.
 
 ## Reliability and cost controls
@@ -88,10 +89,10 @@ Application counters and budget alerts are guardrails, not provider billing caps
 | `GET /api/health` | Implemented | Returns non-secret service health |
 | `GET /api/config` | Implemented | Returns non-secret limits, languages, and privacy notice |
 | `POST /api/translations` | Implemented and production-verified | Validates, extracts/OCRs, translates, and streams review data |
-| `POST /api/exports` | Implemented and production-verified | Verifies source/session/text and box-size corrections and returns a PDF |
+| `POST /api/exports` | Implemented; base export production-verified, new choices integration-tested | Verifies source/session text, point-size, box-size, and keep-original choices and returns a PDF |
 | `GET /api/admin/stats` | Implemented | Returns owner-only aggregate usage, reliability, allowance, and observed provider signals |
 
-The shared contracts define normalized boxes, approximate text style, translation blocks, page layouts, sessions, text correction maps, box-size adjustment maps, progress events, and public configuration. API documentation must be updated if implementation changes those schemas.
+The shared contracts define normalized boxes, approximate text style, translation blocks, page layouts, sessions, text correction maps, box-size and font-size adjustment maps, excluded block IDs, progress events, and public configuration. API documentation must be updated if implementation changes those schemas.
 
 ## Related
 

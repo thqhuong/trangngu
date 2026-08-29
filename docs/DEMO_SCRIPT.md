@@ -23,7 +23,7 @@ Run this on the deployed revision, not only locally:
 3. Run the two-page fixture to Vietnamese twice and inspect both exports.
 4. Confirm page 2 used Document AI and the translation used the configured Gemini model through sanitized diagnostics, not visible document logs.
 5. Confirm the result opens, both pages render, and Vietnamese text can be selected/copied.
-6. Test the comparison control, flagged correction, text-box drag/resize/reset, download, desktop layout, and mobile layout.
+6. Test the comparison control, flagged correction, text-box drag/resize/reset, point-size control, keep-original/restore control, download, desktop layout, and mobile layout.
 7. Clear any visible test filenames or private browser tabs before recording.
 8. Have a second rights-safe fixture ready. If providers fail live, state the failure honestly rather than showing a fake response.
 
@@ -55,9 +55,9 @@ Run this on the deployed revision, not only locally:
 
 ### 1:45–2:05 — Human control
 
-**Say:** “Translation expansion can make a block too tight, so TrangNgữ flags it instead of silently breaking the page.”
+**Say:** “Translation expansion can make a block too tight, while notation such as chord symbols should not be translated at all. TrangNgữ gives people control instead of silently breaking the page.”
 
-**Show:** Open the pre-tested review flag, shorten the translated wording, then drag the green corner to resize its real PDF text box. Briefly show the width/height controls and reset action.
+**Show:** Open the pre-tested review flag, shorten the translated wording, then drag the green corner and adjust point size. Use “Keep original” on a notation-only block, restore it once, and briefly show the width/height reset action.
 
 ### 2:05–2:25 — Useful output and impact
 

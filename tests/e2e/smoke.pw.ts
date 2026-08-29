@@ -7,6 +7,7 @@ test("loads the public application shell", async ({ page }) => {
   await page.goto("/");
 
   await expect(page).toHaveTitle(/TrangNgữ/);
+  await expect(page.locator('link[rel="icon"]')).toHaveAttribute("href", "/favicon.svg");
   await expect(page.getByText("TrangNgữ", { exact: true }).first()).toBeVisible();
   await expect(page.locator("body")).not.toContainText(/GEMINI_API_KEY|SESSION_SIGNING_SECRET|IP_HASH_SALT|ADMIN_DASHBOARD_TOKEN/);
 });

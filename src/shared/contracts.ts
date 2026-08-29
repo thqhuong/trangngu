@@ -65,6 +65,7 @@ export const translationSessionSchema = z
     documentHash: z.string().length(64),
     targetLanguage: languageCodeSchema,
     pageCount: z.number().int().min(1).max(15),
+    preservedBlockCount: z.number().int().nonnegative().max(22_500).default(0),
     expiresAt: z.string().datetime(),
     pages: z.array(pageLayoutSchema).min(1).max(15),
     sessionToken: z.string().min(20),
@@ -87,6 +88,15 @@ export const boxAdjustmentMapSchema = z
   .refine((value) => Object.keys(value).length <= 1_500, "Too many box adjustments");
 
 export type BoxSizeAdjustment = z.infer<typeof boxSizeAdjustmentSchema>;
+
+export const fontSizeAdjustmentMapSchema = z
+  .record(z.string().min(1).max(80), z.number().min(3.5).max(200))
+  .refine((value) => Object.keys(value).length <= 1_500, "Too many font-size adjustments");
+
+export const excludedBlockIdsSchema = z
+  .array(z.string().min(1).max(80))
+  .max(1_500)
+  .refine((value) => new Set(value).size === value.length, "Duplicate excluded block IDs");
 
 export const progressEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("progress"), stage: z.enum(["validating", "extracting", "translating", "preparing"]), message: z.string(), progress: z.number().min(0).max(100) }),

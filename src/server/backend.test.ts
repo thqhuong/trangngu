@@ -5,7 +5,7 @@ import { buildApp } from "./app.js";
 import { loadConfig } from "./config.js";
 import { AppError } from "./errors.js";
 import { inspectPdf } from "./pdf.js";
-import type { TranslationProvider } from "./providers.js";
+import { estimateOcrFontSize, makeBatches, type TranslationProvider } from "./providers.js";
 import { MemoryQuotaStore } from "./quota.js";
 import { sha256, signSession, verifySession, type SessionPayload } from "./security.js";
 import { MemoryTelemetryStore } from "./telemetry.js";
@@ -15,6 +15,35 @@ const config = loadConfig({
   NODE_ENV: "test",
   SESSION_SIGNING_SECRET: "s".repeat(32),
   IP_HASH_SALT: "i".repeat(16),
+});
+
+describe("OCR typography", () => {
+  it("starts dense Korean paragraphs smaller than short labels", () => {
+    const shortLabel = estimateOcrFontSize("도미넌트 코드", 240, 48);
+    const denseParagraph = estimateOcrFontSize("한국어 문장은 같은 의미의 영어 문장보다 글자 수와 줄바꿈이 크게 달라질 수 있습니다.".repeat(7), 520, 150);
+    expect(shortLabel).toBeGreaterThan(denseParagraph);
+    expect(denseParagraph).toBeGreaterThanOrEqual(6);
+    expect(shortLabel).toBeLessThanOrEqual(48);
+  });
+});
+
+describe("Gemini batching", () => {
+  it("keeps dense OCR responses below both block and character ceilings", () => {
+    const blocks = Array.from({ length: 81 }, (_, index) => ({
+      id: `p1-o${index + 1}`,
+      page: 1,
+      box: { x: 0, y: 0, width: 0.2, height: 0.05 },
+      originalText: "가".repeat(160),
+      translatedText: "",
+      confidence: 0.9,
+      needsReview: false,
+      style: { fontSize: 10, color: "#111111", bold: false, italic: false, align: "left" as const },
+    }));
+    const batches = makeBatches(blocks);
+    expect(batches.length).toBeGreaterThan(2);
+    expect(batches.every((batch) => batch.length <= 40)).toBe(true);
+    expect(batches.every((batch) => batch.reduce((total, block) => total + block.originalText.length, 0) <= 6_000)).toBe(true);
+  });
 });
 
 const translator: TranslationProvider = {
@@ -126,6 +155,18 @@ describe("PDF workflow", () => {
     expect(result.buffer.subarray(0, 5).toString()).toBe("%PDF-");
   }, 30_000);
 
+  it("does not create overlays when the translator preserves technical content", async () => {
+    const source = await fixturePdf();
+    const preservingTranslator: TranslationProvider = {
+      async translate(blocks) {
+        return new Map(blocks.map((block) => [block.id, block.originalText]));
+      },
+    };
+    const services = createBackendServices(config, { translator: preservingTranslator });
+    await expect(translatePdf({ file: source, fileName: "technical.pdf", targetLanguage: "vi", requesterIp: "127.0.0.6" }, config, services, () => undefined))
+      .rejects.toMatchObject({ code: "INVALID_PDF", message: expect.stringContaining("preserving notation") });
+  });
+
   it("exports a validated user-resized translation box", async () => {
     const source = await fixturePdf();
     const services = createBackendServices(config, { translator });
@@ -148,6 +189,43 @@ describe("PDF workflow", () => {
       sessionToken: session.sessionToken,
       corrections: {},
       boxAdjustments: { [block.id]: { width: 1, height: 1 } },
+    }, config, services)).rejects.toMatchObject({ code: "INVALID_CORRECTIONS" });
+  }, 30_000);
+
+  it("applies user text size and can preserve a selected original block", async () => {
+    const source = await fixturePdf();
+    const services = createBackendServices(config, { translator });
+    const session = await translatePdf({ file: source, fileName: "reviewed.pdf", targetLanguage: "vi", requesterIp: "127.0.0.5" }, config, services, () => undefined);
+    const block = session.pages[0]!.blocks[0]!;
+    const resized = await exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      fontSizeAdjustments: { [block.id]: 7.5 },
+    }, config, services);
+    expect((await inspectPdf(resized.buffer, config)).embeddedPages.flatMap((page) => page.blocks)
+      .map((item) => item.originalText).join(" ")).toContain("Xin chao");
+
+    const preserved = await exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      excludedBlockIds: [block.id],
+    }, config, services);
+    expect((await inspectPdf(preserved.buffer, config)).embeddedPages.flatMap((page) => page.blocks)
+      .map((item) => item.originalText).join(" ")).not.toContain("Xin chao");
+
+    await expect(exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      fontSizeAdjustments: { unknown: 8 },
+    }, config, services)).rejects.toMatchObject({ code: "INVALID_CORRECTIONS" });
+    await expect(exportPdf({
+      file: source,
+      sessionToken: session.sessionToken,
+      corrections: {},
+      excludedBlockIds: ["unknown"],
     }, config, services)).rejects.toMatchObject({ code: "INVALID_CORRECTIONS" });
   }, 30_000);
 });

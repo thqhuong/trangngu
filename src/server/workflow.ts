@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { boxAdjustmentMapSchema, correctionMapSchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
+import { boxAdjustmentMapSchema, correctionMapSchema, excludedBlockIdsSchema, fontSizeAdjustmentMapSchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
 import type { AppConfig } from "./config.js";
 import { AppError } from "./errors.js";
 import { exportTranslatedPdf, inspectPdf } from "./pdf.js";
@@ -7,6 +7,7 @@ import { createOcrProvider, createTranslationProvider, type OcrProvider, type Tr
 import { createQuotaStore, type QuotaStore } from "./quota.js";
 import { createRuntimeSecret, hashIdentity, sha256, signSession, verifySession, type SessionPayload } from "./security.js";
 import { createTelemetryStore, type TelemetryStore } from "./telemetry.js";
+import { shouldPreserveWithoutTranslation } from "./translation-policy.js";
 
 export interface BackendServices {
   quota: QuotaStore;
@@ -73,18 +74,30 @@ export async function translatePdf(
     pages.push(...recognizedPages);
   }
   pages.sort((a, b) => a.page - b.page);
-  const blocks = pages.flatMap((page) => page.blocks);
-  if (!blocks.length) {
+  const extractedBlocks = pages.flatMap((page) => page.blocks);
+  if (!extractedBlocks.length) {
     throw new AppError("INVALID_PDF", "No readable text was found in this PDF.");
+  }
+
+  const automaticallyPreservedIds = new Set(extractedBlocks
+    .filter((block) => shouldPreserveWithoutTranslation(block.originalText))
+    .map((block) => block.id));
+  const translationCandidates = extractedBlocks.filter((block) => !automaticallyPreservedIds.has(block.id));
+  if (!translationCandidates.length) {
+    throw new AppError("INVALID_PDF", "No translatable prose or labels were found. Musical notation, numbers, and technical symbols were left untouched.");
   }
 
   emit({ type: "progress", stage: "translating", message: "Translating document blocks with Gemini...", progress: 55 });
   const translator = services.translator ?? createTranslationProvider(config);
-  const translations = await translator.translate(blocks, target.data);
+  const translations = await translator.translate(translationCandidates, target.data);
   const usingDevelopmentFallback = !services.translator && !config.geminiApiKey && config.nodeEnv !== "production";
-  for (const block of blocks) {
+  for (const block of translationCandidates) {
     const translated = translations.get(block.id)?.trim();
     if (!translated) throw new AppError("UNSAFE_RESPONSE", "The translation response was incomplete. Please try again.", 502);
+    if (!usingDevelopmentFallback && translated === block.originalText.trim()) {
+      automaticallyPreservedIds.add(block.id);
+      continue;
+    }
     block.translatedText = translated;
     const expansion = translated.length / Math.max(1, block.originalText.length);
     if (usingDevelopmentFallback || expansion > 1.8) {
@@ -93,6 +106,12 @@ export async function translatePdf(
         ? "Development preview only - configure GEMINI_API_KEY for real translation"
         : "Translation may need a shorter phrasing to fit the original layout";
     }
+  }
+  for (const page of pages) {
+    page.blocks = page.blocks.filter((block) => !automaticallyPreservedIds.has(block.id));
+  }
+  if (!pages.some((page) => page.blocks.length > 0)) {
+    throw new AppError("INVALID_PDF", "No text requiring translation remained after preserving notation and technical content.");
   }
 
   emit({ type: "progress", stage: "preparing", message: "Preparing the layout review...", progress: 85 });
@@ -104,6 +123,7 @@ export async function translatePdf(
     documentHash: sha256(input.file),
     targetLanguage: target.data,
     pageCount: inspection.pageCount,
+    preservedBlockCount: automaticallyPreservedIds.size,
     expiresAt,
     pages,
   };
@@ -116,6 +136,8 @@ export interface ExportInput {
   sessionToken: string;
   corrections: unknown;
   boxAdjustments?: unknown;
+  fontSizeAdjustments?: unknown;
+  excludedBlockIds?: unknown;
 }
 
 export async function exportPdf(
@@ -133,19 +155,23 @@ export async function exportPdf(
   }
   const corrections = correctionMapSchema.safeParse(input.corrections);
   const boxAdjustments = boxAdjustmentMapSchema.safeParse(input.boxAdjustments ?? {});
-  if (!corrections.success || !boxAdjustments.success) {
-    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections or box sizes are invalid.");
+  const fontSizeAdjustments = fontSizeAdjustmentMapSchema.safeParse(input.fontSizeAdjustments ?? {});
+  const excludedBlockIds = excludedBlockIdsSchema.safeParse(input.excludedBlockIds ?? []);
+  if (!corrections.success || !boxAdjustments.success || !fontSizeAdjustments.success || !excludedBlockIds.success) {
+    throw new AppError("INVALID_CORRECTIONS", "One or more text, size, or keep-original choices are invalid.");
   }
   const knownBlocks = new Map(session.pages.flatMap((page) => page.blocks.map((block) => [block.id, block] as const)));
   const entries = Object.entries(corrections.data);
   const adjustmentEntries = Object.entries(boxAdjustments.data);
+  const fontSizeEntries = Object.entries(fontSizeAdjustments.data);
   const invalidAdjustment = adjustmentEntries.some(([id, size]) => {
     const block = knownBlocks.get(id);
     return !block || block.box.x + size.width > 1.000_001 || block.box.y + size.height > 1.000_001;
   });
-  if (entries.some(([id]) => !knownBlocks.has(id)) || invalidAdjustment || entries.reduce((total, [, text]) => total + text.length, 0) > 250_000) {
-    throw new AppError("INVALID_CORRECTIONS", "One or more text corrections or box sizes do not belong to this document or fit on its page.");
+  if (entries.some(([id]) => !knownBlocks.has(id)) || invalidAdjustment || fontSizeEntries.some(([id]) => !knownBlocks.has(id)) ||
+      excludedBlockIds.data.some((id) => !knownBlocks.has(id)) || entries.reduce((total, [, text]) => total + text.length, 0) > 250_000) {
+    throw new AppError("INVALID_CORRECTIONS", "One or more text, size, or keep-original choices do not belong to this document or fit on its page.");
   }
-  const buffer = await exportTranslatedPdf(input.file, session, corrections.data, boxAdjustments.data, config);
+  const buffer = await exportTranslatedPdf(input.file, session, corrections.data, boxAdjustments.data, fontSizeAdjustments.data, excludedBlockIds.data, config);
   return { buffer, session };
 }

@@ -129,6 +129,8 @@ export async function exportTranslation(
   sessionToken: string,
   corrections: Record<string, string>,
   boxAdjustments: Record<string, BoxSizeAdjustment>,
+  fontSizeAdjustments: Record<string, number>,
+  excludedBlockIds: string[],
   signal?: AbortSignal,
 ): Promise<{ blob: Blob; fileName: string }> {
   const form = new FormData();
@@ -136,6 +138,8 @@ export async function exportTranslation(
   form.set("sessionToken", sessionToken);
   form.set("corrections", JSON.stringify(corrections));
   form.set("boxAdjustments", JSON.stringify(boxAdjustments));
+  form.set("fontSizeAdjustments", JSON.stringify(fontSizeAdjustments));
+  form.set("excludedBlockIds", JSON.stringify(excludedBlockIds));
 
   const response = await fetch("/api/exports", {
     method: "POST",

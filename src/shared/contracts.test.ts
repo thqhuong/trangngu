@@ -4,6 +4,8 @@ import {
   boxAdjustmentMapSchema,
   boundingBoxSchema,
   correctionMapSchema,
+  excludedBlockIdsSchema,
+  fontSizeAdjustmentMapSchema,
   languageCodeSchema,
   languageOptions,
   translationSessionSchema,
@@ -37,6 +39,13 @@ describe("shared API contracts", () => {
       "p1-b1": { width: 0.42, height: 0.12 },
     });
     expect(boxAdjustmentMapSchema.safeParse({ "p1-b1": { width: 1.2, height: 0.1 } }).success).toBe(false);
+  });
+
+  it("validates text-size and keep-original export choices", () => {
+    expect(fontSizeAdjustmentMapSchema.parse({ "p1-b1": 8.5 })).toEqual({ "p1-b1": 8.5 });
+    expect(fontSizeAdjustmentMapSchema.safeParse({ "p1-b1": 2 }).success).toBe(false);
+    expect(excludedBlockIdsSchema.parse(["p1-b1", "p1-b2"])).toEqual(["p1-b1", "p1-b2"]);
+    expect(excludedBlockIdsSchema.safeParse(["p1-b1", "p1-b1"]).success).toBe(false);
   });
 
   it("does not accept sessions above the public page limit", () => {

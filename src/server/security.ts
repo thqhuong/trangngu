@@ -10,6 +10,7 @@ export interface SessionPayload {
   documentHash: string;
   targetLanguage: LanguageCode;
   pageCount: number;
+  preservedBlockCount?: number;
   expiresAt: string;
   pages: Array<{
     page: number;

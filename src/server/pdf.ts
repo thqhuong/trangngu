@@ -297,6 +297,8 @@ export async function exportTranslatedPdf(
   session: SessionPayload,
   corrections: Record<string, string>,
   boxAdjustments: Record<string, BoxSizeAdjustment>,
+  fontSizeAdjustments: Record<string, number>,
+  excludedBlockIds: string[],
   config: AppConfig,
 ): Promise<Buffer> {
   const tempDirectory = await mkdtemp(join(tmpdir(), "trangngu-"));
@@ -316,7 +318,10 @@ export async function exportTranslatedPdf(
     output.setProducer("TrangNgu");
     output.setCreator("TrangNgu PDF Translator");
     output.registerFontkit(fontkit);
-    const allText = session.pages.flatMap((page) => page.blocks.map((block) => corrections[block.id] ?? block.translatedText)).join("");
+    const excludedBlocks = new Set(excludedBlockIds);
+    const allText = session.pages.flatMap((page) => page.blocks
+      .filter((block) => !excludedBlocks.has(block.id))
+      .map((block) => corrections[block.id] ?? block.translatedText)).join("");
     const fontPath = await findFont(config);
     let font: PDFFont;
     if (fontPath) {
@@ -338,6 +343,7 @@ export async function exportTranslatedPdf(
       const page = output.addPage([pageInfo.width, pageInfo.height]);
       page.drawImage(image, { x: 0, y: 0, width: pageInfo.width, height: pageInfo.height });
       for (const block of pageInfo.blocks) {
+        if (excludedBlocks.has(block.id)) continue;
         const translatedText = corrections[block.id] ?? block.translatedText;
         const adjustedSize = boxAdjustments[block.id];
         const x = block.box.x * pageInfo.width;
@@ -360,7 +366,7 @@ export async function exportTranslatedPdf(
           height: Math.min(pageInfo.height - eraseY, originalHeight + erasePaddingY * 2),
           color: rgb(background.r / 255, background.g / 255, background.b / 255),
         });
-        const fitted = fitText(translatedText, font, block.style.fontSize, boxWidth, boxHeight);
+        const fitted = fitText(translatedText, font, fontSizeAdjustments[block.id] ?? block.style.fontSize, boxWidth, boxHeight);
         if (!fitted) {
           throw new AppError(
             "INVALID_CORRECTIONS",

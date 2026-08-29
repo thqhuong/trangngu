@@ -87,6 +87,8 @@ describe("exportTranslation", () => {
       "signed-session-token-long-enough",
       { "block-1": "Bản dịch đã sửa" },
       { "block-1": { width: 0.6, height: 0.15 } },
+      { "block-1": 9.5 },
+      ["block-2"],
     );
 
     expect(result.fileName).toBe("Tài-liệu-vi.pdf");
@@ -94,6 +96,8 @@ describe("exportTranslation", () => {
     const request = fetchMock.mock.calls[0]?.[1];
     const form = request?.body as FormData;
     expect(JSON.parse(String(form.get("boxAdjustments")))).toEqual({ "block-1": { width: 0.6, height: 0.15 } });
+    expect(JSON.parse(String(form.get("fontSizeAdjustments")))).toEqual({ "block-1": 9.5 });
+    expect(JSON.parse(String(form.get("excludedBlockIds")))).toEqual(["block-2"]);
   });
 });
 

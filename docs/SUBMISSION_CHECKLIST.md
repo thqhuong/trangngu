@@ -10,6 +10,8 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [ ] The result preserves recognizable columns, table lines, images, and page geometry.
 - [ ] Translated text is selectable/searchable in the downloaded PDF.
 - [ ] Flagged-block editing changes the export without repeating OCR or translation.
+- [ ] Point-size changes and keep-original choices change the export without repeating OCR or translation.
+- [ ] The 15-page music fixture preserves chord symbols/page numbers while translating prose and meaningful labels.
 - [ ] Invalid type, 25 MB, 15-page, encryption, quota, timeout, and provider errors are understandable.
 - [ ] Double submission is blocked.
 - [x] Desktop and mobile layouts pass.
@@ -41,7 +43,8 @@ Do not mark an item complete from configuration or a mocked test. Attach the rea
 - [x] Latest ready revision receives 100% of traffic.
 - [x] `/api/health`, homepage, mobile/desktop, export, and real provider path pass against the public URL.
 - [x] Public URL: `https://trangngu-6m6au2eisq-as.a.run.app`
-- [x] Verified revision and test date: `trangngu-00006-ltv` on 2026-08-29
+- [x] Verified revision and test date: `trangngu-00008-n48` on 2026-08-29 (shell, assets, health, locked admin boundary, desktop/mobile)
+- [ ] Re-run the supplied 15-page music PDF after the UTC daily-quota reset; the post-fix real provider result is not yet claimed as passed.
 
 ## Privacy and cost
 

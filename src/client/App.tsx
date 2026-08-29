@@ -1,7 +1,7 @@
 import {
   AlertCircle, AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, CircleCheck,
   Columns2, Download, Eye, FileText, Globe2, Languages, LayoutTemplate, LoaderCircle,
-  LockKeyhole, Pencil, RefreshCw, ScanText, ShieldCheck, Sparkles, UploadCloud, X,
+  LockKeyhole, EyeOff, Pencil, RefreshCw, ScanText, ShieldCheck, Sparkles, Type, Undo2, UploadCloud, X,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from "react";
 import type { BoxSizeAdjustment, LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
@@ -24,15 +24,20 @@ function blockSize(block: TranslationBlock, adjustments: Record<string, BoxSizeA
   return adjustments[block.id] ?? { width: block.box.width, height: block.box.height };
 }
 
-function TranslationOverlay({ blocks, corrections, adjustments, activeId, onSelect, onResize }: {
+function blockFontSize(block: TranslationBlock, adjustments: Record<string, number>): number {
+  return adjustments[block.id] ?? block.style.fontSize;
+}
+
+function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, excludedBlocks, activeId, onSelect, onResize }: {
   blocks: TranslationBlock[]; corrections: Record<string, string>; adjustments: Record<string, BoxSizeAdjustment>;
+  fontSizes: Record<string, number>; excludedBlocks: Record<string, true>;
   activeId: string | null; onSelect: (id: string) => void; onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void;
 }) {
-  return <div className="translation-overlay" aria-hidden="true">{blocks.map((block) => {
+  return <div className="translation-overlay" aria-hidden="true">{blocks.filter((block) => !excludedBlocks[block.id]).map((block) => {
     const size = blockSize(block, adjustments);
     const style = {
       left: `${block.box.x * 100}%`, top: `${block.box.y * 100}%`, width: `${size.width * 100}%`, height: `${size.height * 100}%`,
-      color: block.style.color, fontSize: `${Math.max(7, Math.min(24, block.style.fontSize * 0.8))}px`,
+      color: block.style.color, fontSize: `${Math.max(4, Math.min(28, blockFontSize(block, fontSizes) * 0.8))}px`,
       fontWeight: block.style.bold ? 700 : 400, fontStyle: block.style.italic ? "italic" : "normal", textAlign: block.style.align,
     } satisfies CSSProperties;
     const resize = (event: PointerEvent<HTMLSpanElement>) => {
@@ -59,14 +64,15 @@ function TranslationOverlay({ blocks, corrections, adjustments, activeId, onSele
   })}</div>;
 }
 
-function PagePreview({ document, pageNumber, blocks, corrections, adjustments, activeId, onSelect, onResize, translated = false, label }: {
+function PagePreview({ document, pageNumber, blocks, corrections, adjustments, fontSizes, excludedBlocks, activeId, onSelect, onResize, translated = false, label }: {
   document: ReturnType<typeof usePdf>["document"]; pageNumber: number; blocks: TranslationBlock[]; corrections: Record<string, string>;
-  adjustments: Record<string, BoxSizeAdjustment>; activeId: string | null; onSelect: (id: string) => void;
+  adjustments: Record<string, BoxSizeAdjustment>; fontSizes: Record<string, number>; excludedBlocks: Record<string, true>;
+  activeId: string | null; onSelect: (id: string) => void;
   onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void; translated?: boolean; label: string;
 }) {
   return <div className={`pdf-sheet${translated ? " is-translated" : ""}`}>
     <PdfCanvas document={document} pageNumber={pageNumber} label={label} />
-    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} adjustments={adjustments} activeId={activeId} onSelect={onSelect} onResize={onResize} />}
+    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} adjustments={adjustments} fontSizes={fontSizes} excludedBlocks={excludedBlocks} activeId={activeId} onSelect={onSelect} onResize={onResize} />}
   </div>;
 }
 
@@ -84,6 +90,8 @@ function TranslatorApp() {
   const [pageNumber, setPageNumber] = useState(1);
   const [corrections, setCorrections] = useState<Record<string, string>>({});
   const [boxAdjustments, setBoxAdjustments] = useState<Record<string, BoxSizeAdjustment>>({});
+  const [fontSizeAdjustments, setFontSizeAdjustments] = useState<Record<string, number>>({});
+  const [excludedBlocks, setExcludedBlocks] = useState<Record<string, true>>({});
   const [activeBlockId, setActiveBlockId] = useState<string | null>(null);
   const [viewMode, setViewMode] = useState<"split" | "reveal">("split");
   const [reveal, setReveal] = useState(54);
@@ -110,12 +118,13 @@ function TranslatorApp() {
   const currentPage = session?.pages.find((page) => page.page === pageNumber) ?? null;
   const pageBlocks = useMemo(() => currentPage ? [...currentPage.blocks].sort((a, b) => Number(b.needsReview) - Number(a.needsReview)) : [], [currentPage]);
   const flaggedCount = session?.pages.reduce((count, page) => count + page.blocks.filter((block) => block.needsReview).length, 0) ?? 0;
-  const editedCount = new Set([...Object.keys(corrections), ...Object.keys(boxAdjustments)]).size;
+  const editedCount = new Set([...Object.keys(corrections), ...Object.keys(boxAdjustments), ...Object.keys(fontSizeAdjustments), ...Object.keys(excludedBlocks)]).size;
+  const keptOriginalCount = Object.keys(excludedBlocks).length;
 
   useEffect(() => {
     const blocks = session?.pages.find((page) => page.page === pageNumber)?.blocks ?? [];
-    setActiveBlockId((blocks.find((block) => block.needsReview) ?? blocks[0])?.id ?? null);
-  }, [pageNumber, session]);
+    setActiveBlockId((blocks.find((block) => block.needsReview && !excludedBlocks[block.id]) ?? blocks.find((block) => !excludedBlocks[block.id]))?.id ?? null);
+  }, [pageNumber, session, excludedBlocks]);
 
   const chooseFile = (nextFile?: File) => {
     if (!nextFile) return;
@@ -129,7 +138,7 @@ function TranslatorApp() {
   const onDrop = (event: DragEvent<HTMLLabelElement>) => { event.preventDefault(); setDragging(false); chooseFile(event.dataTransfer.files[0]); };
   const reset = () => {
     controllerRef.current?.abort(); controllerRef.current = null; setPhase("upload"); setFile(null); setFileError(null);
-    setSession(null); setCorrections({}); setBoxAdjustments({}); setRequestError(null); setPageNumber(1); setExportNotice(null); setExporting(false);
+    setSession(null); setCorrections({}); setBoxAdjustments({}); setFontSizeAdjustments({}); setExcludedBlocks({}); setRequestError(null); setPageNumber(1); setExportNotice(null); setExporting(false);
   };
   const start = async () => {
     if (!file || !pdf.document || pdf.loading || fileError || phase === "processing") return;
@@ -139,7 +148,7 @@ function TranslatorApp() {
       const ready = await streamTranslation(file, targetLanguage, (event: ProgressEvent) => {
         if (event.type === "progress") setProgress({ stage: event.stage, value: event.progress });
       }, controller.signal);
-      setSession(ready); setCorrections({}); setBoxAdjustments({}); setPageNumber(1); setPhase("review");
+      setSession(ready); setCorrections({}); setBoxAdjustments({}); setFontSizeAdjustments({}); setExcludedBlocks({}); setPageNumber(1); setPhase("review");
     } catch (error) {
       if (controller.signal.aborted) { setPhase("upload"); return; }
       setRequestError(getFriendlyError(error, locale)); setPhase("error");
@@ -161,11 +170,24 @@ function TranslatorApp() {
   const restoreBoxSize = (block: TranslationBlock) => setBoxAdjustments((current) => {
     const next = { ...current }; delete next[block.id]; return next;
   });
+  const updateFontSize = (block: TranslationBlock, value: number) => setFontSizeAdjustments((current) => {
+    const fontSize = Math.max(3.5, Math.min(200, value));
+    if (Math.abs(fontSize - block.style.fontSize) < 0.01) {
+      const next = { ...current }; delete next[block.id]; return next;
+    }
+    return { ...current, [block.id]: fontSize };
+  });
+  const keepOriginal = (block: TranslationBlock) => {
+    setExcludedBlocks((current) => current[block.id]
+      ? Object.fromEntries(Object.entries(current).filter(([id]) => id !== block.id)) as Record<string, true>
+      : { ...current, [block.id]: true });
+    setActiveBlockId((current) => current === block.id ? null : current);
+  };
   const download = async () => {
     if (!file || !session || exporting) return;
     setExporting(true); setExportNotice(null);
     try {
-      const result = await exportTranslation(file, session.sessionToken, corrections, boxAdjustments);
+      const result = await exportTranslation(file, session.sessionToken, corrections, boxAdjustments, fontSizeAdjustments, Object.keys(excludedBlocks));
       const url = URL.createObjectURL(result.blob); const link = document.createElement("a");
       link.href = url; link.download = result.fileName; document.body.appendChild(link); link.click(); link.remove();
       window.setTimeout(() => URL.revokeObjectURL(url), 1_000); setExportNotice({ kind: "success", text: t.downloadReady });
@@ -243,32 +265,36 @@ function TranslatorApp() {
 
       {phase === "review" && session && currentPage && <section className="review-page" aria-labelledby="review-title">
         <div className="review-header"><div><div className="eyebrow"><CircleCheck size={16} /> {t.reviewEyebrow}</div><h1 id="review-title">{t.reviewTitle}</h1>
-          <div className="review-meta"><strong><FileText size={16} /> {session.fileName}</strong><span>{session.pageCount} {t.pages}</span><span>{flaggedCount} {t.flagged}</span><span>{editedCount} {t.edited}</span></div></div>
+          <div className="review-meta"><strong><FileText size={16} /> {session.fileName}</strong><span>{session.pageCount} {t.pages}</span><span>{flaggedCount} {t.flagged}</span><span>{editedCount} {t.edited}</span>{session.preservedBlockCount > 0 && <span>{session.preservedBlockCount} {t.autoPreserved}</span>}{keptOriginalCount > 0 && <span>{keptOriginalCount} {t.keptOriginalCount}</span>}</div></div>
           <button type="button" className="secondary-button" onClick={reset}><X size={17} /> {t.newDocument}</button></div>
         <div className="review-toolbar"><div className="page-controls"><button type="button" className="icon-button" disabled={pageNumber === 1} onClick={() => setPageNumber((p) => p - 1)} aria-label={t.previousPage}><ChevronLeft size={20} /></button>
           <strong>{t.page} {pageNumber} / {session.pageCount}</strong><button type="button" className="icon-button" disabled={pageNumber === session.pageCount} onClick={() => setPageNumber((p) => p + 1)} aria-label={t.nextPage}><ChevronRight size={20} /></button></div>
           <div className="view-toggle" role="group" aria-label="Comparison view"><button type="button" className={viewMode === "split" ? "is-active" : ""} onClick={() => setViewMode("split")}><Columns2 size={16} /> {t.splitView}</button><button type="button" className={viewMode === "reveal" ? "is-active" : ""} onClick={() => setViewMode("reveal")}><Eye size={16} /> {t.revealView}</button></div>
           <span className={`extraction-badge ${currentPage.extraction}`}>{currentPage.extraction === "document-ai" ? <ScanText size={15} /> : <FileText size={15} />}{currentPage.extraction === "document-ai" ? t.documentAi : t.embedded}</span>
         </div>
-        <nav className="page-strip" aria-label="Document pages">{session.pages.map((page) => <button type="button" key={page.page} className={page.page === pageNumber ? "is-active" : ""} onClick={() => setPageNumber(page.page)} aria-current={page.page === pageNumber ? "page" : undefined}><span>{page.page}</span>{page.blocks.some((block) => block.needsReview) && <i aria-label={t.flagged} />}</button>)}</nav>
+        <nav className="page-strip" aria-label="Document pages">{session.pages.map((page) => <button type="button" key={page.page} className={page.page === pageNumber ? "is-active" : ""} onClick={() => setPageNumber(page.page)} aria-current={page.page === pageNumber ? "page" : undefined}><span>{page.page}</span>{page.blocks.some((block) => block.needsReview && !excludedBlocks[block.id]) && <i aria-label={t.flagged} />}</button>)}</nav>
         <div className="review-workspace"><div className="comparison-column">
           {pdf.error && <div className="preview-warning"><AlertTriangle size={17} /> {t.previewUnavailable}</div>}
           {viewMode === "split" ? <div className="split-comparison">
-            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
-            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
           </div> : <div className="reveal-comparison"><div className="preview-label"><span>{t.original} ↔ {t.translated}</span><small>{reveal}%</small></div>
-            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
-              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
+              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
               <div className="reveal-divider" style={{ left: `${reveal}%` }}><span><ChevronLeft size={14} /><ChevronRight size={14} /></span></div></div>
             <label className="reveal-range"><span>{t.reveal}</span><input type="range" min="0" max="100" value={reveal} onChange={(e) => setReveal(Number(e.target.value))} /></label>
           </div>}
         </div>
         <aside className="block-editor" aria-labelledby="review-panel-title"><div className="editor-heading"><div><span><Pencil size={17} /></span><div><h2 id="review-panel-title">{t.reviewPanel}</h2><p>{t.reviewPanelBody}</p></div></div>
-          {pageBlocks.every((block) => !block.needsReview) && <span className="all-clear"><Check size={14} /> {t.noReview}</span>}</div>
+          {pageBlocks.every((block) => !block.needsReview || excludedBlocks[block.id]) && <span className="all-clear"><Check size={14} /> {t.noReview}</span>}</div>
           <div className="block-list">{pageBlocks.length === 0 && <div className="empty-blocks"><ScanText size={25} /><p>{t.noBlocks}</p></div>}
-            {pageBlocks.map((block, index) => <article key={block.id} className={`block-card${block.needsReview ? " needs-review" : ""}${activeBlockId === block.id ? " is-active" : ""}`} onClick={() => setActiveBlockId(block.id)}>
-              <div className="block-card-top"><span>#{String(index + 1).padStart(2, "0")}</span>{block.needsReview ? <b><AlertTriangle size={14} /> {block.reviewReason || t.lowConfidence}</b> : <b className="confidence"><Check size={14} /> {Math.round(block.confidence * 100)}% {t.confidence}</b>}</div>
+            {pageBlocks.map((block, index) => { const isExcluded = Boolean(excludedBlocks[block.id]); return <article key={block.id} className={`block-card${block.needsReview && !isExcluded ? " needs-review" : ""}${activeBlockId === block.id ? " is-active" : ""}${isExcluded ? " is-excluded" : ""}`} onClick={() => { if (!isExcluded) setActiveBlockId(block.id); }}>
+              <div className="block-card-top"><span>#{String(index + 1).padStart(2, "0")}</span>{isExcluded ? <b className="confidence"><EyeOff size={14} /> {t.originalKept}</b> : block.needsReview ? <b><AlertTriangle size={14} /> {block.reviewReason || t.lowConfidence}</b> : <b className="confidence"><Check size={14} /> {Math.round(block.confidence * 100)}% {t.confidence}</b>}</div>
               <label><span>{t.originalText}</span><div className="original-text" lang="auto">{block.originalText}</div></label>
+              <button type="button" className={`keep-original-button${isExcluded ? " is-active" : ""}`} onClick={(event) => { event.stopPropagation(); keepOriginal(block); }}>
+                {isExcluded ? <Undo2 size={14} /> : <EyeOff size={14} />} {isExcluded ? t.restoreTranslationBlock : t.keepOriginal}
+              </button>
+              {isExcluded ? <div className="kept-original-note"><EyeOff size={16} /><span><strong>{t.originalKept}</strong>{t.originalKeptHint}</span></div> : <>
               <label><span>{t.translationText}</span><textarea value={blockText(block, corrections)} onChange={(e) => updateCorrection(block, e.target.value)} onFocus={() => setActiveBlockId(block.id)} rows={Math.min(7, Math.max(2, Math.ceil(blockText(block, corrections).length / 54)))} /></label>
               <div className="box-size-controls" onClick={(event) => event.stopPropagation()}>
                 <div className="box-size-heading"><div><span>{t.textBoxSize}</span><small>{t.textBoxHint}</small></div>
@@ -279,9 +305,13 @@ function TranslatorApp() {
                 <label className="box-size-range"><span>{t.boxHeight}<b>{Math.round(blockSize(block, boxAdjustments).height * 100)}%</b></span>
                   <input type="range" min={Math.min(0.02, 1 - block.box.y)} max={1 - block.box.y} step="0.005" value={blockSize(block, boxAdjustments).height}
                     onFocus={() => setActiveBlockId(block.id)} onChange={(event) => updateBoxSize(block, { ...blockSize(block, boxAdjustments), height: Number(event.target.value) })} /></label>
+                <label className="box-size-range font-size-range"><span><i><Type size={12} /> {t.fontSize}</i><b>{blockFontSize(block, fontSizeAdjustments).toFixed(1)} pt</b></span>
+                  <input type="range" min="3.5" max={Math.min(200, Math.max(36, Math.ceil(block.style.fontSize * 1.5)))} step="0.5" value={blockFontSize(block, fontSizeAdjustments)}
+                    onFocus={() => setActiveBlockId(block.id)} onChange={(event) => updateFontSize(block, Number(event.target.value))} /></label>
+                {fontSizeAdjustments[block.id] !== undefined && <button type="button" className="reset-font-button" onClick={() => updateFontSize(block, block.style.fontSize)}><RefreshCw size={12} /> {t.resetFontSize}</button>}
               </div>
               {corrections[block.id] !== undefined && <button type="button" className="restore-button" onClick={(e) => { e.stopPropagation(); updateCorrection(block, block.translatedText); }}><RefreshCw size={13} /> {t.restore}</button>}
-            </article>)}
+              </>}</article>; })}
           </div>
           <div className="export-panel">{exportNotice && <div className={`export-notice ${exportNotice.kind}`} role="status">{exportNotice.kind === "success" ? <CircleCheck size={17} /> : <AlertCircle size={17} />}{exportNotice.text}</div>}
             <button type="button" className="primary-button download-button" onClick={() => void download()} disabled={exporting}>{exporting ? <LoaderCircle className="spin" size={19} /> : <Download size={19} />}{exporting ? t.exporting : t.download}</button>

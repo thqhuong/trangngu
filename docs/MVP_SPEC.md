@@ -14,10 +14,10 @@ Existing free translators often lose page structure, fail on scans, or return te
 2. The user chooses one of 12 target languages and uploads a PDF.
 3. The server validates the file, size, encryption state, and page count.
 4. Digital pages use embedded text. Scan-like pages use Document AI OCR.
-5. Gemini translates stable text blocks using a strict JSON response schema.
+5. The server leaves obvious notation and technical-only blocks untouched, then Gemini translates prose and meaningful labels using a strict JSON response schema and a second preserve-unneeded-content instruction.
 6. The review workspace overlays translated blocks on page previews and flags uncertain or overflowing text.
-7. The user can correct wording and resize a translated text box by dragging its green corner or using width and height controls.
-8. The user downloads a searchable fixed-layout PDF containing the reviewed wording and safe box sizes.
+7. The user can correct wording, resize a translated text box by dragging its green corner or using width and height controls, change the text point size, or keep the original source area untouched.
+8. The user downloads a searchable fixed-layout PDF containing only the reviewed translation blocks and layout choices.
 
 The demo magic moment is a scanned page becoming Vietnamese in place while columns, table lines, images, and page geometry remain aligned in a before/after comparison.
 
@@ -52,8 +52,9 @@ The app should flag content it cannot fit safely instead of silently damaging th
 
 - A new user understands the promise, limits, and privacy behavior immediately.
 - A valid digital, scanned, or mixed PDF completes upload, translation, review, wording/box-size correction, and export.
-- A user can make the selected translated box larger or smaller with a drag handle or precise controls, reset it, and export the adjusted layout.
-- The server rejects unknown, malformed, or page-escaping box adjustments.
+- A user can make the selected translated box larger or smaller with a drag handle or precise controls, change/reset its text size, keep/restore the original source area, and export the adjusted layout.
+- The server rejects unknown, malformed, or page-escaping box adjustments, unknown keep-original IDs, and invalid point sizes.
+- Music chord symbols such as `Bbmaj7`, notation-only blocks, and page numbers do not create translation overlays; mixed blocks still preserve these tokens within translated prose.
 - Gemini returns every expected block ID exactly once, and the server rejects malformed, missing, duplicated, or extra blocks.
 - Invalid, encrypted, oversized, over-page-limit, quota-limited, and timed-out requests receive actionable messages.
 - The exported PDF remains readable on desktop and mobile, preserves recognizable structure, and contains selectable translated text.

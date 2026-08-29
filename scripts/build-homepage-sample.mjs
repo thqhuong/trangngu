@@ -108,7 +108,7 @@ if (mode !== "production") {
   session = ready.session;
 }
 
-const output = await exportTranslatedPdf(source, session, {}, {}, config);
+const output = await exportTranslatedPdf(source, session, {}, {}, {}, [], config);
 if (output.subarray(0, 5).toString() !== "%PDF-") throw new Error("Export did not return a PDF.");
 await mkdir(dirname(outputPath), { recursive: true });
 await writeFile(outputPath, output);
