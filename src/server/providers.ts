@@ -256,6 +256,7 @@ export class DocumentAiOcrProvider implements OcrProvider {
       }, { timeout: this.config.documentAiTimeoutMs }), this.config.documentAiTimeoutMs, "OCR_TIMEOUT"));
     } catch (error) {
       if (error instanceof AppError) throw error;
+      console.error("Document AI OCR error:", error);
       throw new AppError("OCR_UNAVAILABLE", "Text recognition is temporarily unavailable. Please try again.", 503);
     }
 
