@@ -55,7 +55,6 @@ describe("streamTranslation", () => {
     const session = await streamTranslation(
       new File(["%PDF"], "guide.pdf", { type: "application/pdf" }),
       "vi",
-      "by-block",
       (event) => events.push(event.type),
       undefined,
       "owner-access-key-that-is-long-enough",
@@ -76,7 +75,6 @@ describe("streamTranslation", () => {
     await expect(streamTranslation(
       new File(["%PDF"], "guide.pdf", { type: "application/pdf" }),
       "vi",
-      "by-block",
       () => undefined,
     )).rejects.toMatchObject({ code: "MODEL_QUOTA", requestId: "req-7" } satisfies Partial<ApiError>);
   });

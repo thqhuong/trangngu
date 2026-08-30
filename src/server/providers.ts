@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { AppError } from "./errors.js";
 import type { AppConfig } from "./config.js";
-import type { Granularity, LanguageCode, TranslationBlock } from "../shared/contracts.js";
+import type { LanguageCode, TranslationBlock } from "../shared/contracts.js";
 import { languageOptions } from "../shared/contracts.js";
 
 export interface ExtractedPage {
@@ -15,7 +15,7 @@ export interface ExtractedPage {
 }
 
 export interface OcrProvider {
-  extract(pdf: Buffer, pageNumbers: number[], granularity?: Granularity): Promise<ExtractedPage[]>;
+  extract(pdf: Buffer, pageNumbers: number[]): Promise<ExtractedPage[]>;
 }
 
 export interface TranslationProvider {
@@ -245,7 +245,7 @@ export class DocumentAiOcrProvider implements OcrProvider {
     });
   }
 
-  async extract(pdf: Buffer, pageNumbers: number[], granularity: Granularity = "by-block"): Promise<ExtractedPage[]> {
+  async extract(pdf: Buffer, pageNumbers: number[]): Promise<ExtractedPage[]> {
     const name = `projects/${this.config.googleCloudProject}/locations/${this.config.documentAiLocation}/processors/${this.config.documentAiProcessorId}`;
     let result: unknown;
     try {
@@ -268,7 +268,7 @@ export class DocumentAiOcrProvider implements OcrProvider {
       const width = Number(page.dimension?.width ?? 612);
       const height = Number(page.dimension?.height ?? 792);
       const blocks: TranslationBlock[] = [];
-      const elements = (granularity === "by-line" && page.lines?.length ? page.lines : page.paragraphs) ?? page.paragraphs ?? [];
+      const elements = page.paragraphs ?? [];
       for (const [elementIndex, element] of elements.entries()) {
         const layout = element.layout;
         const originalText = anchoredText(fullText, layout?.textAnchor);

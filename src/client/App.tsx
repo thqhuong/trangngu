@@ -163,7 +163,6 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>("vi");
-  const [granularity, setGranularity] = useState<"by-block" | "by-line">("by-block");
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState({ stage: "validating" as ProgressStage, value: 0 });
   const [session, setSession] = useState<TranslationSession | null>(null);
@@ -249,7 +248,7 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
     const controller = new AbortController(); controllerRef.current = controller; setPhase("processing"); setRequestError(null);
     setProgress({ stage: "validating", value: 2 });
     try {
-      const ready = await streamTranslation(file, targetLanguage, granularity, (event: ProgressEvent) => {
+      const ready = await streamTranslation(file, targetLanguage, (event: ProgressEvent) => {
         if (event.type === "progress") setProgress({ stage: event.stage, value: event.progress });
       }, controller.signal, ownerAccessKey);
       setSession(ready); setCorrections({}); setBoxAdjustments({}); setFontSizeAdjustments({}); setExcludedBlocks({}); setPageNumber(1); setPhase("review");
@@ -344,14 +343,6 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
               <button className="primary-button" type="button" disabled={!file || pdf.loading || !pdf.document || Boolean(fileError)} onClick={() => void start()}>
                 <span>{pdf.loading ? t.preparingUpload : t.translate}</span>{pdf.loading ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}
               </button><span className={`usage-limit${ownerAccessKey ? " owner-active" : ""}`}><ShieldCheck size={15} /> {ownerAccessKey ? t.ownerLimitBypass : t.dailyLimit}</span>
-            </div>
-            <div className="granularity-controls">
-              <label>{t.granularityLabel}</label>
-              <div className="granularity-toggle" role="group" aria-label={t.granularityLabel}>
-                <button type="button" className={granularity === "by-block" ? "is-active" : ""} onClick={() => setGranularity("by-block")}>{t.granularityByBlock}</button>
-                <button type="button" className={granularity === "by-line" ? "is-active" : ""} onClick={() => setGranularity("by-line")}>{t.granularityByLine}</button>
-              </div>
-              <div className="granularity-hint">{granularity === "by-block" ? t.granularityByBlockHint : t.granularityByLineHint}</div>
             </div>
           </div><aside className="privacy-note"><ShieldCheck size={21} /><div><strong>{t.privacyTitle}</strong><p>{t.privacyBody}</p><b>{t.privacyWarning}</b></div></aside></div>
         </section>

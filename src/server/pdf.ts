@@ -9,7 +9,7 @@ import { AppError } from "./errors.js";
 import type { AppConfig } from "./config.js";
 import type { ExtractedPage } from "./providers.js";
 import type { SessionPayload } from "./security.js";
-import type { BoxSizeAdjustment, Granularity, TranslationBlock } from "../shared/contracts.js";
+import type { BoxSizeAdjustment, TranslationBlock } from "../shared/contracts.js";
 
 type PdfJsDocument = {
   numPages: number;
@@ -39,7 +39,7 @@ export interface PdfInspection {
   scannedPageNumbers: number[];
 }
 
-export async function inspectPdf(buffer: Buffer, config: AppConfig, granularity: Granularity = "by-block"): Promise<PdfInspection> {
+export async function inspectPdf(buffer: Buffer, config: AppConfig): Promise<PdfInspection> {
   if (buffer.length > config.maxPdfBytes) {
     throw new AppError("FILE_TOO_LARGE", "The PDF exceeds the 25 MB file limit.", 413);
   }
@@ -79,7 +79,7 @@ export async function inspectPdf(buffer: Buffer, config: AppConfig, granularity:
       const page = await document.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
-      const blocks = extractEmbeddedBlocks(pageNumber, viewport.width, viewport.height, content.items, granularity);
+      const blocks = extractEmbeddedBlocks(pageNumber, viewport.width, viewport.height, content.items);
       const usefulCharacters = blocks.map((block) => block.originalText).join("").match(/[\p{L}\p{N}]/gu)?.length ?? 0;
       if (usefulCharacters >= 20) {
         embeddedPages.push({
@@ -99,7 +99,7 @@ export async function inspectPdf(buffer: Buffer, config: AppConfig, granularity:
   }
 }
 
-function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: number, items: unknown[], granularity: Granularity = "by-block"): TranslationBlock[] {
+function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: number, items: unknown[]): TranslationBlock[] {
   const lines: Array<{
     x: number; y: number; width: number; height: number; text: string; fontSize: number; fontName: string;
   }> = [];
@@ -123,29 +123,25 @@ function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: numb
     }
   }
 
-  let finalBlocks = lines;
-  if (granularity === "by-block") {
-    const paragraphBlocks: Array<{
-      x: number; y: number; width: number; height: number; text: string; fontSize: number; fontName: string;
-    }> = [];
-    for (const line of lines) {
-      const prev = paragraphBlocks.at(-1);
-      const verticalGap = prev ? line.y - (prev.y + prev.height) : Number.POSITIVE_INFINITY;
-      const sameColumn = prev && Math.abs(prev.x - line.x) <= Math.max(12, line.fontSize * 1.5) &&
-        Math.abs(prev.width - line.width) <= Math.max(40, line.fontSize * 5);
-      const isContiguous = prev && sameColumn && verticalGap >= -line.fontSize * 0.5 && verticalGap <= line.fontSize * 1.25;
-      if (isContiguous && prev) {
-        prev.text += `\n${line.text}`;
-        prev.width = Math.max(prev.width, line.x + line.width - prev.x);
-        prev.height = (line.y + line.height) - prev.y;
-      } else {
-        paragraphBlocks.push({ ...line });
-      }
+  const paragraphBlocks: Array<{
+    x: number; y: number; width: number; height: number; text: string; fontSize: number; fontName: string;
+  }> = [];
+  for (const line of lines) {
+    const prev = paragraphBlocks.at(-1);
+    const verticalGap = prev ? line.y - (prev.y + prev.height) : Number.POSITIVE_INFINITY;
+    const sameColumn = prev && Math.abs(prev.x - line.x) <= Math.max(12, line.fontSize * 1.5) &&
+      Math.abs(prev.width - line.width) <= Math.max(40, line.fontSize * 5);
+    const isContiguous = prev && sameColumn && verticalGap >= -line.fontSize * 0.5 && verticalGap <= line.fontSize * 1.25;
+    if (isContiguous && prev) {
+      prev.text += `\n${line.text}`;
+      prev.width = Math.max(prev.width, line.x + line.width - prev.x);
+      prev.height = (line.y + line.height) - prev.y;
+    } else {
+      paragraphBlocks.push({ ...line });
     }
-    finalBlocks = paragraphBlocks;
   }
 
-  return finalBlocks.slice(0, 1_500).map((line, index) => {
+  return paragraphBlocks.slice(0, 1_500).map((line, index) => {
     const x = clamp(line.x / pageWidth, 0, 0.999);
     const y = clamp(line.y / pageHeight, 0, 0.999);
     const width = clamp(line.width / pageWidth, 0.001, 1 - x);
