@@ -8,7 +8,7 @@
 
 Translate your PDF documents while keeping columns, tables, images, and page structure exactly where they belong.
 
-**[🌐 Try it now](https://trangngu-6m6au2eisq-as.a.run.app)** · **[📺 Watch the demo](https://youtu.be/evu_8kXWIUk)**
+**[🌐 Try it now](https://trangngu-6m6au2eisq-as.a.run.app)** · **[📺 Watch the demo](https://youtu.be/evu_8kXWIUk)** · **[💻 Source code](https://github.com/thqhuong/trangngu)**
 
 </div>
 
@@ -49,9 +49,9 @@ TrangNgữ translates your PDF **in place**. The translated words go right back 
 
 ## Demo
 
-> 🎥 *Demo video coming soon on YouTube.*
+[![Watch the TrangNgữ demo on YouTube](https://img.youtube.com/vi/evu_8kXWIUk/maxresdefault.jpg)](https://youtu.be/evu_8kXWIUk)
 
-You can try it yourself right now with the included [sample PDF](outputs/trangngu-demo-flood-guide.pdf) — a two-page emergency guide with one digital page and one scanned page.
+You can also try it yourself right now with the included [sample PDF](outputs/trangngu-demo-flood-guide.pdf) — a two-page emergency guide with one digital page and one scanned page.
 
 ## Privacy
 
