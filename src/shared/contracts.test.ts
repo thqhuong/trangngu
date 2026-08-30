@@ -43,7 +43,7 @@ describe("shared API contracts", () => {
 
   it("validates text-size and keep-original export choices", () => {
     expect(fontSizeAdjustmentMapSchema.parse({ "p1-b1": 8.5 })).toEqual({ "p1-b1": 8.5 });
-    expect(fontSizeAdjustmentMapSchema.safeParse({ "p1-b1": 2 }).success).toBe(false);
+    expect(fontSizeAdjustmentMapSchema.safeParse({ "p1-b1": 0.5 }).success).toBe(false);
     expect(excludedBlockIdsSchema.parse(["p1-b1", "p1-b2"])).toEqual(["p1-b1", "p1-b2"]);
     expect(excludedBlockIdsSchema.safeParse(["p1-b1", "p1-b1"]).success).toBe(false);
   });

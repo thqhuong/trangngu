@@ -215,7 +215,7 @@ main { flex: 1; }
 @keyframes shimmer { from { left: -50%; } to { left: 115%; } }
 .pdf-render-error { min-height: 260px; display: grid; place-items: center; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .translation-overlay { position: absolute; inset: 0; line-height: 1.16; pointer-events: none; }
-.translated-block { position: absolute; overflow: visible; margin: 0; padding: 1px 2px; border: 1px solid transparent; border-radius: 2px; background: rgba(255, 254, 250, .82); pointer-events: auto; cursor: pointer; white-space: pre-wrap; word-break: break-word; transition: outline-color .15s, background .15s; }
+.translated-block { position: absolute; overflow: hidden; display: flex; flex-direction: column; justify-content: center; box-sizing: border-box; margin: 0; padding: 0 1px; border: 1px solid transparent; border-radius: 2px; background: rgba(255, 254, 250, .85); pointer-events: auto; cursor: pointer; white-space: pre-wrap; word-break: break-word; transition: outline-color .15s, background .15s; }
 .translated-block.needs-review { border-color: rgba(191, 132, 0, .72); background: rgba(255, 247, 211, .9); }
 .translated-block.is-active { outline: 2px solid var(--green); outline-offset: 1px; z-index: 2; }
 .block-resize-frame { position: absolute; z-index: 4; border: 1px dashed var(--green); pointer-events: none; }

@@ -280,9 +280,9 @@ function fontMetrics(font: PDFFont, size: number): { ascent: number; descent: nu
   return {
     ascent,
     descent,
-    lineHeight: Math.max(size * 1.24, totalHeight + size * 0.1),
-    topPadding: Math.max(1.5, size * 0.14),
-    bottomPadding: Math.max(1.75, size * 0.22),
+    lineHeight: Math.max(size * 1.15, totalHeight + size * 0.05),
+    topPadding: Math.max(0.5, size * 0.08),
+    bottomPadding: Math.max(0.5, size * 0.1),
   };
 }
 
@@ -290,27 +290,76 @@ function textHeight(lineCount: number, metrics: ReturnType<typeof fontMetrics>):
   if (lineCount <= 1) {
     return metrics.ascent + metrics.descent;
   }
-  return metrics.topPadding + metrics.ascent + (lineCount - 1) * metrics.lineHeight + metrics.descent + metrics.bottomPadding;
+  return metrics.ascent + (lineCount - 1) * metrics.lineHeight + metrics.descent;
 }
 
-function fitText(text: string, font: PDFFont, requestedSize: number, width: number, height: number): FittedText | undefined {
-  const initial = Math.max(3.5, requestedSize);
-  const maxLineHeight = Math.max(height, initial * 1.15);
-  for (let size = initial; size >= 3.5; size -= 0.25) {
-    const lines = wrapText(text, font, size, width);
+function fitText(text: string, font: PDFFont, requestedSize: number, width: number, height: number, forceExactSize = false): FittedText {
+  if (forceExactSize) {
+    const { lines } = wrapText(text, font, requestedSize, width);
+    const metrics = fontMetrics(font, requestedSize);
+    const totalH = textHeight(lines.length, metrics);
+    return {
+      lines,
+      size: requestedSize,
+      lineHeight: metrics.lineHeight,
+      ascent: metrics.ascent,
+      topPadding: metrics.topPadding,
+      overflows: totalH > height,
+    };
+  }
+
+  // Auto-fit: Find the optimal font size so ALL text fits within width AND height.
+  const maxCap = Math.max(Math.min(100, requestedSize * 2), Math.min(100, height * 0.95));
+  for (let size = maxCap; size >= 2.0; size -= 0.25) {
+    const { lines, fitsWidth } = wrapText(text, font, size, width);
+    if (!fitsWidth) continue;
     const metrics = fontMetrics(font, size);
-    if (textHeight(lines.length, metrics) <= maxLineHeight + 0.01) {
-      return { lines, size, lineHeight: metrics.lineHeight, ascent: metrics.ascent, topPadding: metrics.topPadding, overflows: false };
+    const totalH = textHeight(lines.length, metrics);
+    if (totalH <= height) {
+      return {
+        lines,
+        size,
+        lineHeight: metrics.lineHeight,
+        ascent: metrics.ascent,
+        topPadding: metrics.topPadding,
+        overflows: false,
+      };
     }
   }
-  const lines = wrapText(text, font, 3.5, width);
-  const metrics = fontMetrics(font, 3.5);
-  return { lines, size: 3.5, lineHeight: metrics.lineHeight, ascent: metrics.ascent, topPadding: metrics.topPadding, overflows: true };
+
+  for (let size = 1.9; size >= 1.0; size -= 0.1) {
+    const { lines, fitsWidth } = wrapText(text, font, size, width);
+    if (!fitsWidth) continue;
+    const metrics = fontMetrics(font, size);
+    const totalH = textHeight(lines.length, metrics);
+    if (totalH <= height) {
+      return {
+        lines,
+        size,
+        lineHeight: metrics.lineHeight,
+        ascent: metrics.ascent,
+        topPadding: metrics.topPadding,
+        overflows: false,
+      };
+    }
+  }
+
+  const { lines } = wrapText(text, font, 1.0, width);
+  const metrics = fontMetrics(font, 1.0);
+  return {
+    lines,
+    size: 1.0,
+    lineHeight: metrics.lineHeight,
+    ascent: metrics.ascent,
+    topPadding: metrics.topPadding,
+    overflows: false,
+  };
 }
 
-function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
+function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): { lines: string[]; fitsWidth: boolean } {
   const paragraphs = text.replaceAll("\r", "").split("\n");
   const lines: string[] = [];
+  let fitsWidth = true;
   for (const paragraph of paragraphs) {
     if (!paragraph) {
       lines.push("");
@@ -322,15 +371,21 @@ function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): 
     for (const token of tokens) {
       const candidate = line ? `${line}${hasSpaces ? " " : ""}${token}` : token;
       if (font.widthOfTextAtSize(candidate, size) <= maxWidth || !line) {
+        if (!line && font.widthOfTextAtSize(candidate, size) > maxWidth) {
+          fitsWidth = false;
+        }
         line = candidate;
       } else {
         lines.push(line);
+        if (font.widthOfTextAtSize(token, size) > maxWidth) {
+          fitsWidth = false;
+        }
         line = token;
       }
     }
     if (line) lines.push(line);
   }
-  return lines;
+  return { lines, fitsWidth };
 }
 
 function colorFromHex(value: string): { r: number; g: number; b: number } {
@@ -416,7 +471,9 @@ export async function exportTranslatedPdf(
         const boxHeight = (adjustedSize?.height ?? block.box.height) * pageInfo.height;
         const y = pageInfo.height - top - boxHeight;
         const background = sampleBackground(raw, block);
-        const fitted = fitText(translatedText, font, fontSizeAdjustments[block.id] ?? block.style.fontSize, boxWidth, boxHeight);
+        const isManualFont = fontSizeAdjustments[block.id] !== undefined;
+        const requestedSize = isManualFont ? fontSizeAdjustments[block.id]! : block.style.fontSize;
+        const fitted = fitText(translatedText, font, requestedSize, boxWidth, boxHeight, isManualFont);
         if (!fitted) throw new AppError("EXPORT_FAILED", "The translated PDF layout could not be calculated.", 500);
         renderedBlocks.push({ block, x, y, originalWidth, originalHeight, boxWidth, boxHeight, background, fitted });
       }
@@ -443,10 +500,8 @@ export async function exportTranslatedPdf(
         const { block, x, y, boxWidth, boxHeight, fitted } = rendered;
         const foreground = colorFromHex(block.style.color);
         const metrics = fontMetrics(font, fitted.size);
-        const totalTextContentHeight = metrics.ascent + Math.max(0, fitted.lines.length - 1) * metrics.lineHeight + metrics.descent;
-        const topOffset = totalTextContentHeight <= boxHeight
-          ? Math.max(metrics.topPadding, (boxHeight - totalTextContentHeight) / 2)
-          : metrics.topPadding;
+        const totalTextContentHeight = textHeight(fitted.lines.length, metrics);
+        const topOffset = Math.max(0, (boxHeight - totalTextContentHeight) / 2);
         for (const [lineIndex, line] of fitted.lines.entries()) {
           const lineWidth = font.widthOfTextAtSize(line, fitted.size);
           const alignedX = block.style.align === "center"

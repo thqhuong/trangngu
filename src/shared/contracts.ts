@@ -90,7 +90,7 @@ export const boxAdjustmentMapSchema = z
 export type BoxSizeAdjustment = z.infer<typeof boxSizeAdjustmentSchema>;
 
 export const fontSizeAdjustmentMapSchema = z
-  .record(z.string().min(1).max(80), z.number().min(3.5).max(200))
+  .record(z.string().min(1).max(80), z.number().min(1).max(200))
   .refine((value) => Object.keys(value).length <= 1_500, "Too many font-size adjustments");
 
 export const excludedBlockIdsSchema = z

@@ -32,17 +32,46 @@ function calculateAutoFontSize(
   pageHeight: number,
   defaultFontSize = 12,
 ): number {
-  const widthPx = Math.max(8, boxWidth * pageWidth - 4);
-  const heightPx = Math.max(8, boxHeight * pageHeight - 4);
-  const maxCap = Math.max(defaultFontSize * 1.5, Math.min(120, heightPx * 0.9));
-  for (let size = maxCap; size >= 3.5; size -= 0.5) {
-    const lines = estimateWrappedLines(text, size, widthPx);
-    const requiredHeight = Math.max(1.5, size * 0.14) + size * 0.9 + Math.max(0, lines - 1) * size * 1.24 + size * 0.4 + Math.max(1.75, size * 0.22);
-    if (requiredHeight <= heightPx + 0.5) {
-      return Math.max(3.5, size);
+  const widthPx = Math.max(2, boxWidth * pageWidth);
+  const heightPx = Math.max(2, boxHeight * pageHeight);
+  if (!layoutCanvas) layoutCanvas = document.createElement("canvas");
+  const context = layoutCanvas.getContext("2d");
+
+  const checkFit = (fontSize: number) => {
+    if (!context) return Math.ceil(text.length * fontSize * 0.5 / widthPx) * (fontSize * 1.18) <= heightPx;
+    context.font = `${fontSize}px Arial, sans-serif`;
+    const paragraphs = text.replaceAll("\r", "").split("\n");
+    let lineCount = 0;
+    for (const paragraph of paragraphs) {
+      if (!paragraph) { lineCount++; continue; }
+      const hasSpaces = /\s/u.test(paragraph);
+      const tokens = hasSpaces ? paragraph.split(/\s+/u) : Array.from(paragraph);
+      let line = "";
+      for (const token of tokens) {
+        const candidate = line ? `${line}${hasSpaces ? " " : ""}${token}` : token;
+        if (context.measureText(candidate).width <= widthPx || !line) {
+          if (!line && context.measureText(candidate).width > widthPx) return false;
+          line = candidate;
+        } else {
+          lineCount++;
+          if (context.measureText(token).width > widthPx) return false;
+          line = token;
+        }
+      }
+      if (line) lineCount++;
     }
+    const totalHeight = Math.max(1, lineCount) * (fontSize * 1.18);
+    return totalHeight <= heightPx;
+  };
+
+  const maxCap = Math.max(Math.min(100, defaultFontSize * 2), Math.min(100, heightPx * 0.95));
+  for (let size = maxCap; size >= 2.0; size -= 0.25) {
+    if (checkFit(size)) return size;
   }
-  return 3.5;
+  for (let size = 1.9; size >= 1.0; size -= 0.1) {
+    if (checkFit(size)) return size;
+  }
+  return 1.0;
 }
 
 function blockFontSize(
@@ -87,9 +116,9 @@ function estimateWrappedLines(text: string, fontSize: number, width: number): nu
 }
 
 function hasLayoutOverflow(block: TranslationBlock, pageWidth: number, pageHeight: number, text: string, size: BoxSizeAdjustment, fontSize: number): boolean {
-  const lines = estimateWrappedLines(text, fontSize, Math.max(1, size.width * pageWidth - 4));
-  const requiredHeight = Math.max(1.5, fontSize * 0.14) + fontSize * 0.9 + Math.max(0, lines - 1) * fontSize * 1.24 + fontSize * 0.4 + Math.max(1.75, fontSize * 0.22);
-  return requiredHeight > size.height * pageHeight + 0.01;
+  const lines = estimateWrappedLines(text, fontSize, Math.max(1, size.width * pageWidth));
+  const requiredHeight = Math.max(1, lines) * (fontSize * 1.18);
+  return requiredHeight > size.height * pageHeight + 0.5;
 }
 
 function boxesOverlap(first: TranslationBlock, second: TranslationBlock, adjustments: Record<string, BoxSizeAdjustment>): boolean {
@@ -110,12 +139,32 @@ function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, exclu
   activeId: string | null; pageDimensions: { width: number; height: number } | null;
   onSelect: (id: string) => void; onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void;
 }) {
-  return <div className="translation-overlay" aria-hidden="true">{blocks.filter((block) => !excludedBlocks[block.id]).map((block) => {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(1);
+
+  useEffect(() => {
+    const el = overlayRef.current;
+    if (!el || !pageDimensions) return;
+    const updateScale = () => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width > 0 && pageDimensions.width > 0) {
+        setScale(rect.width / pageDimensions.width);
+      }
+    };
+    updateScale();
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [pageDimensions]);
+
+  return <div ref={overlayRef} className="translation-overlay" aria-hidden="true">{blocks.filter((block) => !excludedBlocks[block.id]).map((block) => {
     const size = blockSize(block, adjustments);
     const fontSizePt = blockFontSize(block, adjustments, fontSizes, corrections, pageDimensions);
+    const fontSizePx = Math.max(1.5, fontSizePt * scale);
     const style = {
       left: `${block.box.x * 100}%`, top: `${block.box.y * 100}%`, width: `${size.width * 100}%`, height: `${size.height * 100}%`,
-      color: block.style.color, fontSize: `${Math.max(4, Math.min(32, fontSizePt * 0.82))}px`,
+      color: block.style.color, fontSize: `${fontSizePx}px`,
+      lineHeight: 1.18,
       fontWeight: block.style.bold ? 700 : 400, fontStyle: block.style.italic ? "italic" : "normal", textAlign: block.style.align,
     } satisfies CSSProperties;
     const resize = (event: PointerEvent<HTMLSpanElement>) => {
