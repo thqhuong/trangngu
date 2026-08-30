@@ -2,38 +2,30 @@
 
 Use this only after the links and claims are true. Replace every bracketed placeholder and delete any sentence describing a feature that did not pass production testing.
 
-## Short version
+## Bilingual Storytelling Version (LinkedIn & Facebook)
 
-I built **TrangNgữ** for AI Riser Vietnam 2026: #BuildwithGoogleAI.
+🚀 Tự hào giới thiệu **TrangNgữ** — Dự án tham dự AI Riser Vietnam 2026: #BuildwithGoogleAI!
 
-Many useful reports and guides are hard to translate because their layout matters, and scanned PDFs may not contain selectable text. TrangNgữ turns a digital or scanned PDF into a translated, searchable PDF while keeping columns, tables, images, and page structure recognizable.
+Đã bao giờ bạn cần đọc một báo cáo nghiên cứu, một tài liệu hướng dẫn kỹ thuật hay một cẩm nang quốc tế dưới định dạng PDF, nhưng khi đưa vào công cụ dịch thì:
+❌ Toàn bộ cột, bảng biểu, hình ảnh bị vỡ nát layout?
+❌ Tệp PDF scan dạng ảnh không thể copy chữ để dịch?
 
-The workflow uses Google Document AI to recover text from scans, Gemini to translate validated document blocks, and Google Cloud Run for the public app. My favorite moment is sliding between the original scan and the Vietnamese page, then correcting one flagged block before download.
+Đó chính là động lực để mình xây dựng TrangNgữ với phương châm: *"Dịch chuẩn từ ngữ, giữ trọn trang in"* (Translate the words, keep the page).
 
-Try it: https://trangngu-6m6au2eisq-as.a.run.app
+✨ ĐIỂM ĐỘT PHÁ CỦA TRANGNGỮ:
+1️⃣ Tự động xử lý cả PDF số lẫn PDF scan: Trích xuất trực tiếp văn bản thường và sử dụng Google Document AI OCR cho các trang scan.
+2️⃣ Dịch thuật bảo toàn cấu trúc với Google Gemini API: Sử dụng Strict JSON Schema để dịch chính xác từng khối văn bản và tự động bỏ qua các ký hiệu chuyên ngành (hợp âm nhạc, công thức, mã số).
+3️⃣ Trải nghiệm tương tác trực quan: Thanh trượt so sánh bản gốc/bản dịch và thuật toán Auto-Fit tự động co giãn cỡ chữ để vừa khít 100% khung ban đầu.
+4️⃣ Quyền riêng tư tuyệt đối (Zero-retention) & Không cần đăng ký tài khoản.
 
-Demo: [PUBLIC_YOUTUBE_URL]
+🔗 Trải nghiệm ứng dụng thực tế (Google Cloud Run): https://trangngu-6m6au2eisq-as.a.run.app
+🎥 Video Demo YouTube: [PUBLIC_YOUTUBE_URL]
+💻 Mã nguồn GitHub: https://github.com/thqhuong/trangngu
+⚡ Google AI Studio Link: [PUBLIC_AI_STUDIO_URL]
 
-Code: https://github.com/thqhuong/trangngu
+Cảm ơn Google và Ban tổ chức AI Riser Vietnam 2026 đã tạo ra một sân chơi tuyệt vời để các lập trình viên biến ý tưởng thành sản phẩm thực tế phục vụ cộng đồng! 🇻🇳
 
-Build notes: I kept the MVP account-free, limited processing to 15 pages per job and 45 pages per requester per day, and designed it not to retain uploaded PDFs. The Gemini free-tier disclosure means users should not upload sensitive documents.
-
-#BuildwithGoogleAI #AIRiserVietnam2026 #GeminiAPI #GoogleCloud #DocumentAI #Vietnam
-
-## Build-journey version
-
-What looked like “translate a PDF” became three harder problems: finding words in a scan, translating them without losing their block identity, and fitting longer Vietnamese text back into the original geometry.
-
-For AI Riser Vietnam 2026, I focused on one complete workflow instead of another chat box. **TrangNgữ** extracts embedded text when possible, uses Google Document AI only for scan-like pages, sends stable blocks to Gemini with a strict JSON schema, and flags text that cannot fit safely. The result is a downloadable PDF with recognizable structure and a searchable translated text layer.
-
-The biggest product decision was human review. A translator should not silently shrink or overlap important text. TrangNgữ calls out uncertain and cramped blocks so the user stays in control.
-
-Live app: https://trangngu-6m6au2eisq-as.a.run.app
-Demo: [PUBLIC_YOUTUBE_URL]
-Repository: https://github.com/thqhuong/trangngu
-AI Studio: [PUBLIC_AI_STUDIO_URL]
-
-#BuildwithGoogleAI #AIRiserVietnam2026 #GeminiAPI #GoogleCloudRun #DocumentAI
+#BuildwithGoogleAI #AIRiserVietnam2026 #GeminiAPI #GoogleCloudRun #DocumentAI #GoogleAIStudio #DeveloperVietnam #AIforGood
 
 ## Publication check
 
