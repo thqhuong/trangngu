@@ -3,7 +3,7 @@ import {
   Columns2, Download, Eye, FileText, Globe2, Languages, LayoutTemplate, LoaderCircle,
   LockKeyhole, EyeOff, Pencil, RefreshCw, ScanText, ShieldCheck, Sparkles, Type, Undo2, UploadCloud, X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from "react";
 import type { BoxSizeAdjustment, Granularity, LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
 import { exportTranslation, loadPublicConfig, streamTranslation } from "./api";
 import { AdminDashboard } from "./AdminDashboard";
