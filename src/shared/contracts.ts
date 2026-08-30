@@ -50,9 +50,6 @@ export const translationBlockSchema = z.object({
 
 export type TranslationBlock = z.infer<typeof translationBlockSchema>;
 
-export const granularitySchema = z.enum(["by-block", "by-line"]);
-export type Granularity = z.infer<typeof granularitySchema>;
-
 export const pageLayoutSchema = z.object({
   page: z.number().int().positive(),
   width: z.number().positive(),
@@ -67,7 +64,6 @@ export const translationSessionSchema = z
     fileName: z.string().min(1).max(200),
     documentHash: z.string().length(64),
     targetLanguage: languageCodeSchema,
-    granularity: granularitySchema.default("by-block"),
     pageCount: z.number().int().min(1).max(15),
     preservedBlockCount: z.number().int().nonnegative().max(22_500).default(0),
     expiresAt: z.string().datetime(),
