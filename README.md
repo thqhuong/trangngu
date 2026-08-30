@@ -13,10 +13,10 @@
 - Public app: [https://trangngu-6m6au2eisq-as.a.run.app](https://trangngu-6m6au2eisq-as.a.run.app)
 - Private owner dashboard: [https://trangngu-6m6au2eisq-as.a.run.app/#/admin](https://trangngu-6m6au2eisq-as.a.run.app/#/admin)
 - Google Cloud project: `trangngu-ai-riser-2026` (separate from Doc2Do)
-- Cloud Run service/revision: `trangngu` / `trangngu-00010-544`, with 100% of traffic
+- Cloud Run service/revision: `trangngu` / `trangngu-00011-7qw`, with 100% of traffic
 - Region and limits: `asia-southeast1`, minimum 0, maximum 2, 1 CPU, 2 GiB, concurrency 2, timeout 600 seconds
 - Providers: Enterprise Document OCR processor `e0a3a06f46f66a72` and free-tier `gemini-3.5-flash-lite`
-- Verification: public shell, health, favicon, sample assets, and protected dashboard passed; 34 automated tests passed; 12 local Playwright checks passed across desktop Chromium and Pixel 7, including the owner-mode lifecycle; 10 production checks passed and the two secret-dependent owner tests were intentionally skipped. Point-size, keep-original, drag-resize, filtering, owner authorization, and export geometry passed browser/integration tests. The real owner-authorized 15-page music PDF passed the daily guardrail and reached OCR/Gemini, but still ended with a safely rejected `UNSAFE_RESPONSE`; a successful output for that fixture is not claimed yet.
+- Verification: public shell, health, favicon, sample assets, and protected dashboard passed; 35 automated tests passed; 12 local Playwright checks passed across desktop Chromium and Pixel 7, including the owner-mode lifecycle; 10 production checks passed and the two secret-dependent owner tests were intentionally skipped. Point-size, keep-original, drag-resize, filtering, owner authorization, live layout warning calculation, and two-pass PDF export geometry passed browser/integration tests. The real owner-authorized 15-page music PDF passed the daily guardrail and reached OCR/Gemini, but still ended with a safely rejected `UNSAFE_RESPONSE`; a successful output for that fixture is not claimed yet.
 
 The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%-forecast thresholds. This is an alert, not a spending cap. The application additionally reserves at most 900 OCR pages per month.
 
