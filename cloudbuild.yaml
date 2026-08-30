@@ -2,7 +2,7 @@ substitutions:
   _REGION: asia-southeast1
   _SERVICE: trangngu
   _REPOSITORY: trangngu
-  _DOCUMENT_AI_PROCESSOR_ID: eaac994a3782b6be
+  _DOCUMENT_AI_PROCESSOR_ID: e0a3a06f46f66a72
   _GEMINI_MODEL: gemini-3.5-flash-lite
 
 steps:

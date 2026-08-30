@@ -99,12 +99,7 @@ main { flex: 1; }
 .primary-button:hover:not(:disabled) { background: var(--green-dark); transform: translateY(-1px); }
 .primary-button:disabled { opacity: .48; cursor: not-allowed; }
 .secondary-button { background: var(--paper); border-color: var(--line-strong); color: var(--ink); }
-.granularity-controls { margin-top: 14px; }
-.granularity-controls > label { display: block; font-size: 11px; font-weight: 700; color: #59635d; text-transform: uppercase; letter-spacing: .07em; margin-bottom: 7px; }
-.granularity-toggle { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding: 3px; background: #e8e7de; border-radius: 10px; }
-.granularity-toggle button { min-height: 38px; border: 0; border-radius: 8px; background: transparent; color: var(--muted); cursor: pointer; font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; gap: 6px; }
-.granularity-toggle button.is-active { background: var(--paper); color: var(--green); box-shadow: 0 1px 4px rgba(29, 37, 32, .14); }
-.granularity-hint { margin-top: 6px; color: var(--muted); font-size: 10px; line-height: 1.45; font-style: italic; background: #f3f3eb; padding: 6px 10px; border-radius: 6px; border-left: 3px solid var(--green); }
+
 .usage-limit { grid-column: 1 / -1; justify-self: end; color: var(--muted); display: flex; align-items: center; gap: 5px; font-size: 10px; }
 .usage-limit svg { color: var(--green); }
 .usage-limit.owner-active { color: var(--green); font-weight: 700; }
