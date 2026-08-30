@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { boxAdjustmentMapSchema, correctionMapSchema, excludedBlockIdsSchema, fontSizeAdjustmentMapSchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
+import { boxAdjustmentMapSchema, correctionMapSchema, excludedBlockIdsSchema, fontSizeAdjustmentMapSchema, granularitySchema, languageCodeSchema, translationSessionSchema, type ProgressEvent, type TranslationSession } from "../shared/contracts.js";
 import type { AppConfig } from "./config.js";
 import { AppError } from "./errors.js";
 import { exportTranslatedPdf, inspectPdf } from "./pdf.js";
@@ -36,6 +36,7 @@ export interface TranslationInput {
   file: Buffer;
   fileName: string;
   targetLanguage: string;
+  granularity?: string;
   requesterIp: string;
   requestId?: string;
   bypassDailyQuota?: boolean;
@@ -50,12 +51,13 @@ export async function translatePdf(
   const requestId = input.requestId ?? randomUUID();
   const target = languageCodeSchema.safeParse(input.targetLanguage);
   if (!target.success) throw new AppError("UNSUPPORTED_LANGUAGE", "Choose one of the supported target languages.");
+  const granularity = granularitySchema.safeParse(input.granularity).data ?? "by-block";
   if (!services.sessionSecret || !services.ipSalt) {
     throw new AppError("CONFIGURATION_ERROR", "Secure session handling is not configured on this service.", 503);
   }
 
   emit({ type: "progress", stage: "validating", message: "Checking PDF and usage limits...", progress: 5 });
-  const inspection = await inspectPdf(input.file, config);
+  const inspection = await inspectPdf(input.file, config, granularity);
   const identity = hashIdentity(input.requesterIp, services.ipSalt);
   if (!input.bypassDailyQuota) {
     await services.quota.reserveDaily(identity, inspection.pageCount, services.now());
@@ -68,7 +70,7 @@ export async function translatePdf(
   if (inspection.scannedPageNumbers.length) {
     await services.quota.reserveOcr(inspection.scannedPageNumbers.length, services.now());
     const ocr = services.ocr ?? createOcrProvider(config);
-    const recognizedPages = await ocr.extract(input.file, inspection.scannedPageNumbers);
+    const recognizedPages = await ocr.extract(input.file, inspection.scannedPageNumbers, granularity);
     const recognizedNumbers = new Set(recognizedPages.map((page) => page.page));
     const missing = inspection.scannedPageNumbers.filter((page) => !recognizedNumbers.has(page));
     if (missing.length) {
@@ -125,6 +127,7 @@ export async function translatePdf(
     fileName: input.fileName,
     documentHash: sha256(input.file),
     targetLanguage: target.data,
+    granularity,
     pageCount: inspection.pageCount,
     preservedBlockCount: automaticallyPreservedIds.size,
     expiresAt,

@@ -4,6 +4,7 @@ import {
   publicConfigSchema,
   type AdminStats,
   type BoxSizeAdjustment,
+  type Granularity,
   type LanguageCode,
   type ProgressEvent,
   type PublicConfig,
@@ -74,6 +75,7 @@ function parseLine(line: string): ProgressEvent {
 export async function streamTranslation(
   file: File,
   targetLanguage: LanguageCode,
+  granularity: Granularity = "by-block",
   onEvent: (event: ProgressEvent) => void,
   signal?: AbortSignal,
   ownerAccessKey?: string,
@@ -81,6 +83,7 @@ export async function streamTranslation(
   const form = new FormData();
   form.set("file", file);
   form.set("targetLanguage", targetLanguage);
+  form.set("granularity", granularity);
 
   const response = await fetch("/api/translations", {
     method: "POST",

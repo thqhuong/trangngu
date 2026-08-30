@@ -156,6 +156,7 @@ export async function buildApp(config: AppConfig, serviceOverrides: Partial<Back
         file: multipartPayload.file,
         fileName: multipartPayload.fileName,
         targetLanguage: multipartPayload.fields.targetLanguage ?? "",
+        granularity: multipartPayload.fields.granularity,
         requesterIp: request.ip,
         requestId,
         bypassDailyQuota: ownerBypass,

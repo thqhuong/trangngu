@@ -3,7 +3,7 @@ import { GoogleGenAI } from "@google/genai";
 import { z } from "zod";
 import { AppError } from "./errors.js";
 import type { AppConfig } from "./config.js";
-import type { LanguageCode, TranslationBlock } from "../shared/contracts.js";
+import type { Granularity, LanguageCode, TranslationBlock } from "../shared/contracts.js";
 import { languageOptions } from "../shared/contracts.js";
 
 export interface ExtractedPage {
@@ -15,7 +15,7 @@ export interface ExtractedPage {
 }
 
 export interface OcrProvider {
-  extract(pdf: Buffer, pageNumbers: number[]): Promise<ExtractedPage[]>;
+  extract(pdf: Buffer, pageNumbers: number[], granularity?: Granularity): Promise<ExtractedPage[]>;
 }
 
 export interface TranslationProvider {
@@ -200,19 +200,22 @@ export class DevelopmentTranslationProvider implements TranslationProvider {
   }
 }
 
+type DocumentAiElement = {
+  layout?: {
+    textAnchor?: { textSegments?: Array<{ startIndex?: number | string | LongLike | null; endIndex?: number | string | LongLike | null }> | null } | null;
+    boundingPoly?: {
+      normalizedVertices?: Array<{ x?: number | null; y?: number | null }> | null;
+      vertices?: Array<{ x?: number | null; y?: number | null }> | null;
+    } | null;
+    confidence?: number | null;
+  } | null;
+};
+
 type DocumentAiPage = {
   pageNumber?: number | LongLike | null;
   dimension?: { width?: number | null; height?: number | null } | null;
-  paragraphs?: Array<{
-    layout?: {
-      textAnchor?: { textSegments?: Array<{ startIndex?: number | string | LongLike | null; endIndex?: number | string | LongLike | null }> | null } | null;
-      boundingPoly?: {
-        normalizedVertices?: Array<{ x?: number | null; y?: number | null }> | null;
-        vertices?: Array<{ x?: number | null; y?: number | null }> | null;
-      } | null;
-      confidence?: number | null;
-    } | null;
-  }> | null;
+  paragraphs?: DocumentAiElement[] | null;
+  lines?: DocumentAiElement[] | null;
 };
 
 type LongLike = { toString(): string };
@@ -242,7 +245,7 @@ export class DocumentAiOcrProvider implements OcrProvider {
     });
   }
 
-  async extract(pdf: Buffer, pageNumbers: number[]): Promise<ExtractedPage[]> {
+  async extract(pdf: Buffer, pageNumbers: number[], granularity: Granularity = "by-block"): Promise<ExtractedPage[]> {
     const name = `projects/${this.config.googleCloudProject}/locations/${this.config.documentAiLocation}/processors/${this.config.documentAiProcessorId}`;
     let result: unknown;
     try {
@@ -264,8 +267,9 @@ export class DocumentAiOcrProvider implements OcrProvider {
       const width = Number(page.dimension?.width ?? 612);
       const height = Number(page.dimension?.height ?? 792);
       const blocks: TranslationBlock[] = [];
-      for (const [paragraphIndex, paragraph] of (page.paragraphs ?? []).entries()) {
-        const layout = paragraph.layout;
+      const elements = (granularity === "by-line" && page.lines?.length ? page.lines : page.paragraphs) ?? page.paragraphs ?? [];
+      for (const [elementIndex, element] of elements.entries()) {
+        const layout = element.layout;
         const originalText = anchoredText(fullText, layout?.textAnchor);
         if (!originalText) continue;
         const normalized = layout?.boundingPoly?.normalizedVertices ?? [];
@@ -283,7 +287,7 @@ export class DocumentAiOcrProvider implements OcrProvider {
         const boxHeight = Math.min(1 - y, Math.max(0.001, Math.max(...ys) - y));
         const confidence = Math.min(1, Math.max(0, Number(layout?.confidence ?? 0.7)));
         blocks.push({
-          id: `p${pageNumber}-o${paragraphIndex + 1}`,
+          id: `p${pageNumber}-o${elementIndex + 1}`,
           page: pageNumber,
           box: { x, y, width: boxWidth, height: boxHeight },
           originalText,
