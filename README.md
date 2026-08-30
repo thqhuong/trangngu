@@ -8,7 +8,7 @@
 
 Translate your PDF documents while keeping columns, tables, images, and page structure exactly where they belong.
 
-**[🌐 Try it now](https://trangngu-6m6au2eisq-as.a.run.app)** · **[📺 Watch the demo](#demo)** · **[💻 Source code](https://github.com/thqhuong/trangngu)**
+**[🌐 Try it now](https://trangngu-6m6au2eisq-as.a.run.app)** · **[📺 Watch the demo](https://youtu.be/evu_8kXWIUk)**
 
 </div>
 
