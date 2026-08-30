@@ -1,7 +1,7 @@
 import { createHash, createHmac, randomBytes, timingSafeEqual } from "node:crypto";
 import { deflateRawSync, inflateRawSync } from "node:zlib";
 import { AppError } from "./errors.js";
-import type { LanguageCode, TranslationBlock } from "../shared/contracts.js";
+import type { Granularity, LanguageCode, TranslationBlock } from "../shared/contracts.js";
 
 export interface SessionPayload {
   version: 1;
@@ -9,6 +9,7 @@ export interface SessionPayload {
   fileName: string;
   documentHash: string;
   targetLanguage: LanguageCode;
+  granularity?: Granularity;
   pageCount: number;
   preservedBlockCount?: number;
   expiresAt: string;

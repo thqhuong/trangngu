@@ -3,8 +3,8 @@ import {
   Columns2, Download, Eye, FileText, Globe2, Languages, LayoutTemplate, LoaderCircle,
   LockKeyhole, EyeOff, Pencil, RefreshCw, ScanText, ShieldCheck, Sparkles, Type, Undo2, UploadCloud, X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type PointerEvent } from "react";
-import type { BoxSizeAdjustment, LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type PointerEvent } from "react";
+import type { BoxSizeAdjustment, Granularity, LanguageCode, ProgressEvent, TranslationBlock, TranslationSession } from "../shared/contracts";
 import { exportTranslation, loadPublicConfig, streamTranslation } from "./api";
 import { AdminDashboard } from "./AdminDashboard";
 import { copy, DEFAULT_CONFIG, formatBytes, getFriendlyError, type Locale } from "./i18n";
@@ -51,6 +51,17 @@ function estimateWrappedLines(text: string, fontSize: number, width: number): nu
     if (line) lines.push(line);
   }
   return Math.max(1, lines.length);
+}
+
+function calculateAutoFontSize(text: string, boxWidth: number, boxHeight: number, pageWidth: number, pageHeight: number): number {
+  const widthPx = Math.max(10, boxWidth * pageWidth - 4);
+  const heightPx = Math.max(10, boxHeight * pageHeight - 4);
+  for (let size = 72; size >= 3.5; size -= 0.5) {
+    const lines = estimateWrappedLines(text, size, widthPx);
+    const metricsHeight = Math.max(1.5, size * 0.14) + size * 0.9 + Math.max(0, lines - 1) * size * 1.24 + size * 0.4 + Math.max(1.75, size * 0.22);
+    if (metricsHeight <= heightPx + 0.5) return size;
+  }
+  return 3.5;
 }
 
 function hasLayoutOverflow(block: TranslationBlock, pageWidth: number, pageHeight: number, text: string, size: BoxSizeAdjustment, fontSize: number): boolean {
@@ -127,6 +138,7 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
   const [file, setFile] = useState<File | null>(null);
   const [fileError, setFileError] = useState<string | null>(null);
   const [targetLanguage, setTargetLanguage] = useState<LanguageCode>("vi");
+  const [granularity, setGranularity] = useState<Granularity>("by-block");
   const [dragging, setDragging] = useState(false);
   const [progress, setProgress] = useState({ stage: "validating" as ProgressStage, value: 0 });
   const [session, setSession] = useState<TranslationSession | null>(null);
@@ -212,7 +224,7 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
     const controller = new AbortController(); controllerRef.current = controller; setPhase("processing"); setRequestError(null);
     setProgress({ stage: "validating", value: 2 });
     try {
-      const ready = await streamTranslation(file, targetLanguage, (event: ProgressEvent) => {
+      const ready = await streamTranslation(file, targetLanguage, granularity, (event: ProgressEvent) => {
         if (event.type === "progress") setProgress({ stage: event.stage, value: event.progress });
       }, controller.signal, ownerAccessKey);
       setSession(ready); setCorrections({}); setBoxAdjustments({}); setFontSizeAdjustments({}); setExcludedBlocks({}); setPageNumber(1); setPhase("review");
@@ -244,6 +256,13 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
     }
     return { ...current, [block.id]: fontSize };
   });
+  const autoSizeBlock = (block: TranslationBlock) => {
+    if (!currentPage) return;
+    const size = blockSize(block, boxAdjustments);
+    const text = blockText(block, corrections);
+    const calculated = calculateAutoFontSize(text, size.width, size.height, currentPage.width, currentPage.height);
+    updateFontSize(block, calculated);
+  };
   const keepOriginal = (block: TranslationBlock) => {
     setExcludedBlocks((current) => current[block.id]
       ? Object.fromEntries(Object.entries(current).filter(([id]) => id !== block.id)) as Record<string, true>
@@ -264,6 +283,10 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
   const languageLabel = (code: LanguageCode) => {
     const option = config.languages.find((language) => language.code === code);
     return option ? (locale === "vi" ? option.nativeLabel : option.label) : code;
+  };
+  const updateRevealPointer = (event: PointerEvent<HTMLDivElement>) => {
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setReveal(Math.max(0, Math.min(100, ((event.clientX - bounds.left) / bounds.width) * 100)));
   };
 
   return <div className="app-shell">
@@ -304,6 +327,13 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
             <div className="translation-controls"><label htmlFor="target-language">{t.targetLabel}</label>
               <div className="select-wrap"><Globe2 size={18} /><select id="target-language" value={targetLanguage} onChange={(e) => setTargetLanguage(e.target.value as LanguageCode)}>
                 {config.languages.map((option) => <option key={option.code} value={option.code}>{option.nativeLabel} · {option.label}</option>)}</select></div>
+              <div className="granularity-control"><label>{t.granularityLabel}</label>
+                <div className="granularity-toggle" role="group" aria-label={t.granularityLabel}>
+                  <button type="button" className={granularity === "by-block" ? "is-active" : ""} onClick={() => setGranularity("by-block")}><LayoutTemplate size={15} /> {t.granularityByBlock}</button>
+                  <button type="button" className={granularity === "by-line" ? "is-active" : ""} onClick={() => setGranularity("by-line")}><Type size={15} /> {t.granularityByLine}</button>
+                </div>
+                <p className="granularity-hint">{granularity === "by-block" ? t.granularityByBlockHint : t.granularityByLineHint}</p>
+              </div>
               <button className="primary-button" type="button" disabled={!file || pdf.loading || !pdf.document || Boolean(fileError)} onClick={() => void start()}>
                 <span>{pdf.loading ? t.preparingUpload : t.translate}</span>{pdf.loading ? <LoaderCircle className="spin" size={19} /> : <ArrowRight size={19} />}
               </button><span className={`usage-limit${ownerAccessKey ? " owner-active" : ""}`}><ShieldCheck size={15} /> {ownerAccessKey ? t.ownerLimitBypass : t.dailyLimit}</span>
@@ -348,11 +378,22 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
           {viewMode === "split" ? <div className="split-comparison">
             <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
             <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
-          </div> : <div className="reveal-comparison"><div className="preview-label"><span>{t.original} ↔ {t.translated}</span><small>{reveal}%</small></div>
-            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
+          </div> : <div className="reveal-comparison"><div className="preview-label"><span>{t.original} ↔ {t.translated}</span><small>{Math.round(reveal)}%</small></div>
+            <div className="reveal-stage" role="slider" tabIndex={0} aria-label={t.reveal} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(reveal)}
+              onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); updateRevealPointer(e); }}
+              onPointerMove={(e) => { if (e.currentTarget.hasPointerCapture(e.pointerId)) updateRevealPointer(e); }}
+              onKeyDown={(e) => {
+                const amount = e.shiftKey ? 10 : 2;
+                if (e.key === "ArrowLeft") { e.preventDefault(); setReveal((v) => Math.max(0, v - amount)); }
+                if (e.key === "ArrowRight") { e.preventDefault(); setReveal((v) => Math.min(100, v + amount)); }
+                if (e.key === "Home") { e.preventDefault(); setReveal(0); }
+                if (e.key === "End") { e.preventDefault(); setReveal(100); }
+              }}>
+              <PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
               <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
-              <div className="reveal-divider" style={{ left: `${reveal}%` }}><span><ChevronLeft size={14} /><ChevronRight size={14} /></span></div></div>
-            <label className="reveal-range"><span>{t.reveal}</span><input type="range" min="0" max="100" value={reveal} onChange={(e) => setReveal(Number(e.target.value))} /></label>
+              <div className="reveal-divider" style={{ left: `${reveal}%` }}><span><ChevronLeft size={14} /><ChevronRight size={14} /></span></div>
+            </div>
+            <p className="sample-drag-hint"><ChevronLeft size={14} /> {t.dragHint} <ChevronRight size={14} /></p>
           </div>}
         </div>
         <aside className="block-editor" aria-labelledby="review-panel-title"><div className="editor-heading"><div><span><Pencil size={17} /></span><div><h2 id="review-panel-title">{t.reviewPanel}</h2><p>{t.reviewPanelBody}</p></div></div>
@@ -378,7 +419,12 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
                 <label className="box-size-range font-size-range"><span><i><Type size={12} /> {t.fontSize}</i><b>{blockFontSize(block, fontSizeAdjustments).toFixed(1)} pt</b></span>
                   <input type="range" min="3.5" max={Math.min(200, Math.max(36, Math.ceil(block.style.fontSize * 1.5)))} step="0.5" value={blockFontSize(block, fontSizeAdjustments)}
                     onFocus={() => setActiveBlockId(block.id)} onChange={(event) => updateFontSize(block, Number(event.target.value))} /></label>
-                {fontSizeAdjustments[block.id] !== undefined && <button type="button" className="reset-font-button" onClick={() => updateFontSize(block, block.style.fontSize)}><RefreshCw size={12} /> {t.resetFontSize}</button>}
+                <div className="font-size-actions">
+                  <button type="button" className="auto-font-button" onClick={(e) => { e.stopPropagation(); autoSizeBlock(block); }}>
+                    <Sparkles size={12} /> {t.autoFontSize}
+                  </button>
+                  {fontSizeAdjustments[block.id] !== undefined && <button type="button" className="reset-font-button" onClick={(e) => { e.stopPropagation(); updateFontSize(block, block.style.fontSize); }}><RefreshCw size={12} /> {t.resetFontSize}</button>}
+                </div>
               </div>
               {corrections[block.id] !== undefined && <button type="button" className="restore-button" onClick={(e) => { e.stopPropagation(); updateCorrection(block, block.translatedText); }}><RefreshCw size={13} /> {t.restore}</button>}
               </>}</article>; })}

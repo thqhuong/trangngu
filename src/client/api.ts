@@ -4,6 +4,7 @@ import {
   publicConfigSchema,
   type AdminStats,
   type BoxSizeAdjustment,
+  type Granularity,
   type LanguageCode,
   type ProgressEvent,
   type PublicConfig,
@@ -74,27 +75,45 @@ function parseLine(line: string): ProgressEvent {
 export async function streamTranslation(
   file: File,
   targetLanguage: LanguageCode,
-  onEvent: (event: ProgressEvent) => void,
-  signal?: AbortSignal,
+  granularityOrOnEvent: Granularity | ((event: ProgressEvent) => void) = "by-block",
+  onEventOrSignal?: ((event: ProgressEvent) => void) | AbortSignal,
+  signalOrOwnerKey?: AbortSignal | string,
   ownerAccessKey?: string,
 ): Promise<TranslationSession> {
+  let granularity: Granularity = "by-block";
+  let onEvent: (event: ProgressEvent) => void = () => undefined;
+  let signal: AbortSignal | undefined;
+  let key: string | undefined = ownerAccessKey;
+
+  if (typeof granularityOrOnEvent === "function") {
+    onEvent = granularityOrOnEvent;
+    signal = onEventOrSignal as AbortSignal | undefined;
+    key = signalOrOwnerKey as string | undefined;
+  } else {
+    granularity = granularityOrOnEvent;
+    onEvent = (onEventOrSignal as (event: ProgressEvent) => void) ?? (() => undefined);
+    signal = signalOrOwnerKey as AbortSignal | undefined;
+  }
+
   const form = new FormData();
   form.set("file", file);
   form.set("targetLanguage", targetLanguage);
+  form.set("granularity", granularity);
+
+  const headers: Record<string, string> = {};
+  if (key) {
+    headers.Authorization = `Bearer ${key}`;
+  }
 
   const response = await fetch("/api/translations", {
     method: "POST",
+    headers,
     body: form,
-    headers: {
-      Accept: "application/x-ndjson",
-      ...(ownerAccessKey ? { Authorization: `Bearer ${ownerAccessKey}` } : {}),
-    },
     signal,
   });
-
   if (!response.ok) throw await readError(response);
   if (!response.body) {
-    throw new ApiError("Your browser could not read the progress stream.", "STREAM_UNAVAILABLE");
+    throw new ApiError("The server returned an empty progress stream.", "INVALID_STREAM");
   }
 
   const reader = response.body.getReader();
@@ -102,28 +121,41 @@ export async function streamTranslation(
   let buffer = "";
   let session: TranslationSession | undefined;
 
-  const consumeLine = (line: string) => {
-    if (!line.trim()) return;
-    const event = parseLine(line);
+  while (true) {
+    const { done, value } = await reader.read();
+    buffer += decoder.decode(value, { stream: !done });
+    const lines = buffer.split("\n");
+    buffer = lines.pop() ?? "";
+
+    for (const rawLine of lines) {
+      const line = rawLine.trim();
+      if (!line) continue;
+      const event = parseLine(line);
+      onEvent(event);
+      if (event.type === "error") {
+        throw new ApiError(event.message, event.code, event.requestId);
+      }
+      if (event.type === "ready") {
+        session = event.session;
+      }
+    }
+
+    if (done) break;
+  }
+
+  if (buffer.trim()) {
+    const event = parseLine(buffer.trim());
     onEvent(event);
     if (event.type === "error") {
       throw new ApiError(event.message, event.code, event.requestId);
     }
-    if (event.type === "ready") session = event.session;
-  };
-
-  while (true) {
-    const { done, value } = await reader.read();
-    buffer += decoder.decode(value, { stream: !done });
-    const lines = buffer.split(/\r?\n/);
-    buffer = lines.pop() ?? "";
-    lines.forEach(consumeLine);
-    if (done) break;
+    if (event.type === "ready") {
+      session = event.session;
+    }
   }
-  consumeLine(buffer);
 
   if (!session) {
-    throw new ApiError("Processing ended before a translation was ready.", "INCOMPLETE_STREAM");
+    throw new ApiError("The translation stream ended without a complete session result.", "INVALID_STREAM");
   }
   return session;
 }

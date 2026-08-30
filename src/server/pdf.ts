@@ -9,7 +9,7 @@ import { AppError } from "./errors.js";
 import type { AppConfig } from "./config.js";
 import type { ExtractedPage } from "./providers.js";
 import type { SessionPayload } from "./security.js";
-import type { BoxSizeAdjustment, TranslationBlock } from "../shared/contracts.js";
+import type { BoxSizeAdjustment, Granularity, TranslationBlock } from "../shared/contracts.js";
 
 type PdfJsDocument = {
   numPages: number;
@@ -39,7 +39,7 @@ export interface PdfInspection {
   scannedPageNumbers: number[];
 }
 
-export async function inspectPdf(buffer: Buffer, config: AppConfig): Promise<PdfInspection> {
+export async function inspectPdf(buffer: Buffer, config: AppConfig, granularity: Granularity = "by-block"): Promise<PdfInspection> {
   if (buffer.length > config.maxPdfBytes) {
     throw new AppError("FILE_TOO_LARGE", "The PDF exceeds the 25 MB file limit.", 413);
   }
@@ -79,7 +79,7 @@ export async function inspectPdf(buffer: Buffer, config: AppConfig): Promise<Pdf
       const page = await document.getPage(pageNumber);
       const viewport = page.getViewport({ scale: 1 });
       const content = await page.getTextContent();
-      const blocks = extractEmbeddedBlocks(pageNumber, viewport.width, viewport.height, content.items);
+      const blocks = extractEmbeddedBlocks(pageNumber, viewport.width, viewport.height, content.items, granularity);
       const usefulCharacters = blocks.map((block) => block.originalText).join("").match(/[\p{L}\p{N}]/gu)?.length ?? 0;
       if (usefulCharacters >= 20) {
         embeddedPages.push({
@@ -99,7 +99,7 @@ export async function inspectPdf(buffer: Buffer, config: AppConfig): Promise<Pdf
   }
 }
 
-function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: number, items: unknown[]): TranslationBlock[] {
+function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: number, items: unknown[], granularity: Granularity = "by-block"): TranslationBlock[] {
   const lines: Array<{
     x: number; y: number; width: number; height: number; text: string; fontSize: number; fontName: string;
   }> = [];
@@ -123,7 +123,29 @@ function extractEmbeddedBlocks(page: number, pageWidth: number, pageHeight: numb
     }
   }
 
-  return lines.slice(0, 1_500).map((line, index) => {
+  let finalBlocks = lines;
+  if (granularity === "by-block") {
+    const paragraphBlocks: Array<{
+      x: number; y: number; width: number; height: number; text: string; fontSize: number; fontName: string;
+    }> = [];
+    for (const line of lines) {
+      const prev = paragraphBlocks.at(-1);
+      const verticalGap = prev ? line.y - (prev.y + prev.height) : Number.POSITIVE_INFINITY;
+      const sameColumn = prev && Math.abs(prev.x - line.x) <= Math.max(12, line.fontSize * 1.5) &&
+        Math.abs(prev.width - line.width) <= Math.max(40, line.fontSize * 5);
+      const isContiguous = prev && sameColumn && verticalGap >= -line.fontSize * 0.5 && verticalGap <= line.fontSize * 1.25;
+      if (isContiguous && prev) {
+        prev.text += `\n${line.text}`;
+        prev.width = Math.max(prev.width, line.x + line.width - prev.x);
+        prev.height = (line.y + line.height) - prev.y;
+      } else {
+        paragraphBlocks.push({ ...line });
+      }
+    }
+    finalBlocks = paragraphBlocks;
+  }
+
+  return finalBlocks.slice(0, 1_500).map((line, index) => {
     const x = clamp(line.x / pageWidth, 0, 0.999);
     const y = clamp(line.y / pageHeight, 0, 0.999);
     const width = clamp(line.width / pageWidth, 0.001, 1 - x);
@@ -420,6 +442,11 @@ export async function exportTranslatedPdf(
       for (const rendered of renderedBlocks) {
         const { block, x, y, boxWidth, boxHeight, fitted } = rendered;
         const foreground = colorFromHex(block.style.color);
+        const metrics = fontMetrics(font, fitted.size);
+        const totalTextContentHeight = metrics.ascent + Math.max(0, fitted.lines.length - 1) * metrics.lineHeight + metrics.descent;
+        const topOffset = totalTextContentHeight <= boxHeight
+          ? Math.max(metrics.topPadding, (boxHeight - totalTextContentHeight) / 2)
+          : metrics.topPadding;
         for (const [lineIndex, line] of fitted.lines.entries()) {
           const lineWidth = font.widthOfTextAtSize(line, fitted.size);
           const alignedX = block.style.align === "center"
@@ -427,7 +454,7 @@ export async function exportTranslatedPdf(
             : block.style.align === "right" ? x + Math.max(0, boxWidth - lineWidth) : x;
           page.drawText(line, {
             x: alignedX,
-            y: y + boxHeight - fitted.topPadding - fitted.ascent - lineIndex * fitted.lineHeight,
+            y: y + boxHeight - topOffset - metrics.ascent - lineIndex * metrics.lineHeight,
             size: fitted.size,
             font,
             color: rgb(foreground.r, foreground.g, foreground.b),
