@@ -65,7 +65,8 @@ export function SampleComparison({ locale }: { locale: Locale }) {
         onPointerDown={onPointerDown} onPointerMove={(event) => { if (event.currentTarget.hasPointerCapture(event.pointerId)) updateFromPointer(event); }} onKeyDown={onKeyDown}>
         <img draggable={false} src="/sample/trangngu-sample-original.png" alt="Original English sample PDF page" />
         <div className="sample-reveal-layer" style={{ clipPath: `inset(0 ${100 - position}% 0 0)` }}><img draggable={false} src="/sample/trangngu-sample-translated.png" alt="Vietnamese translated sample PDF page" /></div>
-        <span className="sample-corner-label is-original">{t.original}</span><span className="sample-corner-label is-translated">{t.translated}</span>
+        <span className="sample-corner-label is-original" style={{ opacity: position > 88 ? 0 : 1, transition: "opacity 0.2s ease" }}>{t.original}</span>
+        <span className="sample-corner-label is-translated" style={{ opacity: position < 12 ? 0 : 1, transition: "opacity 0.2s ease" }}>{t.translated}</span>
         <div className="sample-reveal-line" style={{ left: `${position}%` }} aria-hidden="true"><span><ChevronLeft size={15} /><ChevronRight size={15} /></span></div>
       </div>
       <p className="sample-drag-hint"><ChevronLeft size={14} /> {t.drag} <ChevronRight size={14} /></p>

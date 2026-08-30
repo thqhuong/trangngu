@@ -269,15 +269,19 @@ function fontMetrics(font: PDFFont, size: number): { ascent: number; descent: nu
 }
 
 function textHeight(lineCount: number, metrics: ReturnType<typeof fontMetrics>): number {
-  return metrics.topPadding + metrics.ascent + Math.max(0, lineCount - 1) * metrics.lineHeight + metrics.descent + metrics.bottomPadding;
+  if (lineCount <= 1) {
+    return metrics.ascent + metrics.descent;
+  }
+  return metrics.topPadding + metrics.ascent + (lineCount - 1) * metrics.lineHeight + metrics.descent + metrics.bottomPadding;
 }
 
 function fitText(text: string, font: PDFFont, requestedSize: number, width: number, height: number): FittedText | undefined {
   const initial = Math.max(3.5, requestedSize);
+  const maxLineHeight = Math.max(height, initial * 1.15);
   for (let size = initial; size >= 3.5; size -= 0.25) {
     const lines = wrapText(text, font, size, width);
     const metrics = fontMetrics(font, size);
-    if (textHeight(lines.length, metrics) <= height + 0.01) {
+    if (textHeight(lines.length, metrics) <= maxLineHeight + 0.01) {
       return { lines, size, lineHeight: metrics.lineHeight, ascent: metrics.ascent, topPadding: metrics.topPadding, overflows: false };
     }
   }

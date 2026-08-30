@@ -64,7 +64,7 @@ const recoveredTranslations = new Map(Object.entries({
   "If officials ask you to leave, take your emergency bag and": "Nếu nhà chức trách yêu cầu rời đi, hãy mang theo túi cứu hộ và",
   "move before routes become unsafe.": "di chuyển trước khi các tuyến đường trở nên không an toàn.",
   "SAMPLE DOCUMENT - CREATED FOR TRANGNGU - NO PERSONAL DATA": "TÀI LIỆU MẪU - TẠO CHO TRANGNGU - KHÔNG CÓ DỮ LIỆU CÁ NHÂN",
-  "SOURCE SAMPLE / ENGLISH": "MẪU NGUỒN / TIẾNG ANH",
+  "SOURCE SAMPLE / ENGLISH": "MẪU BẢN DỊCH / TIẾNG VIỆT",
   "For demonstration only. In an emergency, follow current guidance from local authorities.": "Chỉ dành cho mục đích minh họa. Trong trường hợp khẩn cấp, hãy tuân theo hướng dẫn hiện tại từ cơ quan chức năng địa phương.",
 }));
 
