@@ -15,9 +15,9 @@ Existing free translators often lose page structure, fail on scans, or return te
 3. The server validates the file, size, encryption state, and page count.
 4. Digital pages use embedded text. Scan-like pages use Document AI OCR.
 5. The server leaves obvious notation and technical-only blocks untouched, then Gemini translates prose and meaningful labels using a strict JSON response schema and a second preserve-unneeded-content instruction.
-6. The review workspace overlays translated blocks on page previews and flags uncertain or overflowing text.
-7. The user can correct wording, resize a translated text box by dragging its green corner or using width and height controls, change the text point size, or keep the original source area untouched.
-8. The user downloads a searchable fixed-layout PDF containing only the reviewed translation blocks and layout choices.
+6. The review workspace overlays translated blocks on page previews and recalculates yellow layout warnings immediately when wording, text size, or box dimensions change.
+7. The user can correct wording, resize a translated text box by dragging its green corner or using width and height controls, change the text point size, or keep the original source area untouched. Text boxes may overlap when that is the user's preferred layout.
+8. The user downloads a searchable fixed-layout PDF containing only the reviewed translation blocks and layout choices. A yellow layout warning is informational and never disables download.
 
 The demo magic moment is a scanned page becoming Vietnamese in place while columns, table lines, images, and page geometry remain aligned in a before/after comparison.
 

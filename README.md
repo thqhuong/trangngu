@@ -26,9 +26,9 @@ The project has a monthly ₫100,000 warning budget with 50%, 90%, 100%, and 90%
 - Three jobs and **45 pages per requester per day**.
 - Embedded-text extraction first; Google Cloud Document AI OCR for scan-like pages.
 - Gemini translates identified text blocks on the server with structured, validated JSON.
-- A review workspace keeps blocks aligned with the source page, flags uncertain or overflowing text, and lets users resize each translated text box, change its point size, or keep the original region untouched.
+- A review workspace keeps blocks aligned with the source page, recalculates yellow layout warnings live as wording, text size, and box dimensions change, and lets users resize each translated text box, change its point size, or keep the original region untouched. Layout warnings never block download.
 - Music notation, chord symbols such as `Bbmaj7`, page numbers, URLs, and similar technical tokens are filtered before Gemini; the model is also instructed to preserve any remaining non-translatable block byte-for-byte.
-- Export creates a fixed-layout PDF with a searchable translated text layer.
+- Export creates a fixed-layout PDF with a searchable translated text layer. It paints all source-cover masks before any translated glyphs, preventing a neighboring block's mask from cutting off letter descenders.
 - The homepage includes a rights-safe, visually balanced before/after PDF sample with reveal and side-by-side views, without a download prompt competing with the main workflow.
 - A private owner dashboard at `/#/admin` reports aggregate jobs, translated pages, exports, OCR allowance, reliability, and observed Gemini quota errors.
 - An authenticated owner-testing mode can bypass the daily requester job/page limits in the current tab; it never bypasses the monthly OCR cap, file limits, or provider quotas.

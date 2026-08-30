@@ -28,9 +28,52 @@ function blockFontSize(block: TranslationBlock, adjustments: Record<string, numb
   return adjustments[block.id] ?? block.style.fontSize;
 }
 
-function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, excludedBlocks, activeId, onSelect, onResize }: {
+type ReviewStatus = { warning: boolean; reason?: string };
+
+let layoutCanvas: HTMLCanvasElement | undefined;
+
+function estimateWrappedLines(text: string, fontSize: number, width: number): number {
+  if (!layoutCanvas) layoutCanvas = document.createElement("canvas");
+  const context = layoutCanvas.getContext("2d");
+  if (!context) return Math.max(1, Math.ceil(text.length * fontSize * 0.5 / Math.max(1, width)));
+  context.font = `${fontSize}px Arial, sans-serif`;
+  const lines: string[] = [];
+  for (const paragraph of text.replaceAll("\r", "").split("\n")) {
+    if (!paragraph) { lines.push(""); continue; }
+    const hasSpaces = /\s/u.test(paragraph);
+    const tokens = hasSpaces ? paragraph.split(/\s+/u) : Array.from(paragraph);
+    let line = "";
+    for (const token of tokens) {
+      const candidate = line ? `${line}${hasSpaces ? " " : ""}${token}` : token;
+      if (context.measureText(candidate).width <= width || !line) line = candidate;
+      else { lines.push(line); line = token; }
+    }
+    if (line) lines.push(line);
+  }
+  return Math.max(1, lines.length);
+}
+
+function hasLayoutOverflow(block: TranslationBlock, pageWidth: number, pageHeight: number, text: string, size: BoxSizeAdjustment, fontSize: number): boolean {
+  const lines = estimateWrappedLines(text, fontSize, Math.max(1, size.width * pageWidth - 4));
+  const requiredHeight = Math.max(1.5, fontSize * 0.14) + fontSize * 0.9 + Math.max(0, lines - 1) * fontSize * 1.24 + fontSize * 0.4 + Math.max(1.75, fontSize * 0.22);
+  return requiredHeight > size.height * pageHeight + 0.01;
+}
+
+function boxesOverlap(first: TranslationBlock, second: TranslationBlock, adjustments: Record<string, BoxSizeAdjustment>): boolean {
+  const firstSize = blockSize(first, adjustments);
+  const secondSize = blockSize(second, adjustments);
+  return first.box.x < second.box.x + secondSize.width - 0.002 && first.box.x + firstSize.width > second.box.x + 0.002 &&
+    first.box.y < second.box.y + secondSize.height - 0.002 && first.box.y + firstSize.height > second.box.y + 0.002;
+}
+
+function isStaticConfidenceWarning(block: TranslationBlock): boolean {
+  return block.reviewReason === "Low OCR confidence";
+}
+
+function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, excludedBlocks, reviewStatuses, activeId, onSelect, onResize }: {
   blocks: TranslationBlock[]; corrections: Record<string, string>; adjustments: Record<string, BoxSizeAdjustment>;
   fontSizes: Record<string, number>; excludedBlocks: Record<string, true>;
+  reviewStatuses: Record<string, ReviewStatus>;
   activeId: string | null; onSelect: (id: string) => void; onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void;
 }) {
   return <div className="translation-overlay" aria-hidden="true">{blocks.filter((block) => !excludedBlocks[block.id]).map((block) => {
@@ -53,7 +96,7 @@ function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, exclu
     };
     return <div key={block.id}>
       <button type="button" tabIndex={-1} style={style} onClick={() => onSelect(block.id)}
-      className={`translated-block${block.needsReview ? " needs-review" : ""}${activeId === block.id ? " is-active" : ""}`}>
+      className={`translated-block${reviewStatuses[block.id]?.warning ? " needs-review" : ""}${activeId === block.id ? " is-active" : ""}`}>
       {blockText(block, corrections)}
       </button>
       {activeId === block.id && <div className="block-resize-frame" style={style}>
@@ -64,15 +107,16 @@ function TranslationOverlay({ blocks, corrections, adjustments, fontSizes, exclu
   })}</div>;
 }
 
-function PagePreview({ document, pageNumber, blocks, corrections, adjustments, fontSizes, excludedBlocks, activeId, onSelect, onResize, translated = false, label }: {
+function PagePreview({ document, pageNumber, blocks, corrections, adjustments, fontSizes, excludedBlocks, reviewStatuses, activeId, onSelect, onResize, translated = false, label }: {
   document: ReturnType<typeof usePdf>["document"]; pageNumber: number; blocks: TranslationBlock[]; corrections: Record<string, string>;
   adjustments: Record<string, BoxSizeAdjustment>; fontSizes: Record<string, number>; excludedBlocks: Record<string, true>;
+  reviewStatuses: Record<string, ReviewStatus>;
   activeId: string | null; onSelect: (id: string) => void;
   onResize: (block: TranslationBlock, size: BoxSizeAdjustment) => void; translated?: boolean; label: string;
 }) {
   return <div className={`pdf-sheet${translated ? " is-translated" : ""}`}>
     <PdfCanvas document={document} pageNumber={pageNumber} label={label} />
-    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} adjustments={adjustments} fontSizes={fontSizes} excludedBlocks={excludedBlocks} activeId={activeId} onSelect={onSelect} onResize={onResize} />}
+    {translated && <TranslationOverlay blocks={blocks} corrections={corrections} adjustments={adjustments} fontSizes={fontSizes} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeId} onSelect={onSelect} onResize={onResize} />}
   </div>;
 }
 
@@ -115,16 +159,39 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
     else if (pdf.document) setFileError(null);
   }, [config.maxPagesPerJob, file, locale, pdf.document, pdf.error]);
 
+  const reviewStatuses = useMemo<Record<string, ReviewStatus>>(() => {
+    if (!session) return {};
+    const statuses: Record<string, ReviewStatus> = {};
+    for (const page of session.pages) {
+      const visibleBlocks = page.blocks.filter((block) => !excludedBlocks[block.id]);
+      for (const block of visibleBlocks) {
+        const size = blockSize(block, boxAdjustments);
+        const textOverflows = hasLayoutOverflow(block, page.width, page.height, blockText(block, corrections), size, blockFontSize(block, fontSizeAdjustments));
+        const overlaps = visibleBlocks.some((other) => other.id !== block.id && boxesOverlap(block, other, boxAdjustments));
+        if (textOverflows || overlaps) {
+          statuses[block.id] = {
+            warning: true,
+            reason: textOverflows ? t.layoutOverflowWarning : t.layoutOverlapWarning,
+          };
+        } else if (isStaticConfidenceWarning(block)) {
+          statuses[block.id] = { warning: true, reason: block.reviewReason || t.lowConfidence };
+        } else {
+          statuses[block.id] = { warning: false };
+        }
+      }
+    }
+    return statuses;
+  }, [boxAdjustments, corrections, excludedBlocks, fontSizeAdjustments, session, t.layoutOverlapWarning, t.layoutOverflowWarning, t.lowConfidence]);
   const currentPage = session?.pages.find((page) => page.page === pageNumber) ?? null;
-  const pageBlocks = useMemo(() => currentPage ? [...currentPage.blocks].sort((a, b) => Number(b.needsReview) - Number(a.needsReview)) : [], [currentPage]);
-  const flaggedCount = session?.pages.reduce((count, page) => count + page.blocks.filter((block) => block.needsReview).length, 0) ?? 0;
+  const pageBlocks = useMemo(() => currentPage ? [...currentPage.blocks].sort((a, b) => Number(Boolean(reviewStatuses[b.id]?.warning)) - Number(Boolean(reviewStatuses[a.id]?.warning))) : [], [currentPage, reviewStatuses]);
+  const flaggedCount = Object.values(reviewStatuses).filter((status) => status.warning).length;
   const editedCount = new Set([...Object.keys(corrections), ...Object.keys(boxAdjustments), ...Object.keys(fontSizeAdjustments), ...Object.keys(excludedBlocks)]).size;
   const keptOriginalCount = Object.keys(excludedBlocks).length;
 
   useEffect(() => {
     const blocks = session?.pages.find((page) => page.page === pageNumber)?.blocks ?? [];
-    setActiveBlockId((blocks.find((block) => block.needsReview && !excludedBlocks[block.id]) ?? blocks.find((block) => !excludedBlocks[block.id]))?.id ?? null);
-  }, [pageNumber, session, excludedBlocks]);
+    setActiveBlockId((blocks.find((block) => reviewStatuses[block.id]?.warning && !excludedBlocks[block.id]) ?? blocks.find((block) => !excludedBlocks[block.id]))?.id ?? null);
+  }, [pageNumber, session, excludedBlocks, reviewStatuses]);
 
   const chooseFile = (nextFile?: File) => {
     if (!nextFile) return;
@@ -275,24 +342,24 @@ function TranslatorApp({ ownerAccessKey, onDisableOwnerMode }: { ownerAccessKey:
           <div className="view-toggle" role="group" aria-label="Comparison view"><button type="button" className={viewMode === "split" ? "is-active" : ""} onClick={() => setViewMode("split")}><Columns2 size={16} /> {t.splitView}</button><button type="button" className={viewMode === "reveal" ? "is-active" : ""} onClick={() => setViewMode("reveal")}><Eye size={16} /> {t.revealView}</button></div>
           <span className={`extraction-badge ${currentPage.extraction}`}>{currentPage.extraction === "document-ai" ? <ScanText size={15} /> : <FileText size={15} />}{currentPage.extraction === "document-ai" ? t.documentAi : t.embedded}</span>
         </div>
-        <nav className="page-strip" aria-label="Document pages">{session.pages.map((page) => <button type="button" key={page.page} className={page.page === pageNumber ? "is-active" : ""} onClick={() => setPageNumber(page.page)} aria-current={page.page === pageNumber ? "page" : undefined}><span>{page.page}</span>{page.blocks.some((block) => block.needsReview && !excludedBlocks[block.id]) && <i aria-label={t.flagged} />}</button>)}</nav>
+        <nav className="page-strip" aria-label="Document pages">{session.pages.map((page) => <button type="button" key={page.page} className={page.page === pageNumber ? "is-active" : ""} onClick={() => setPageNumber(page.page)} aria-current={page.page === pageNumber ? "page" : undefined}><span>{page.page}</span>{page.blocks.some((block) => reviewStatuses[block.id]?.warning && !excludedBlocks[block.id]) && <i aria-label={t.flagged} />}</button>)}</nav>
         <div className="review-workspace"><div className="comparison-column">
           {pdf.error && <div className="preview-warning"><AlertTriangle size={17} /> {t.previewUnavailable}</div>}
           {viewMode === "split" ? <div className="split-comparison">
-            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
-            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.original}</span><small>{t.localPreview}</small></div><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} /></div>
+            <div className="preview-panel"><div className="preview-label"><span>{t.translated}</span><small>{languageLabel(session.targetLanguage)}</small></div><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
           </div> : <div className="reveal-comparison"><div className="preview-label"><span>{t.original} ↔ {t.translated}</span><small>{reveal}%</small></div>
-            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
-              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
+            <div className="reveal-stage"><PagePreview document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.original} ${pageNumber}`} />
+              <div className="reveal-layer" style={{ clipPath: `inset(0 ${100 - reveal}% 0 0)` }}><PagePreview translated document={pdf.document} pageNumber={pageNumber} blocks={currentPage.blocks} corrections={corrections} adjustments={boxAdjustments} fontSizes={fontSizeAdjustments} excludedBlocks={excludedBlocks} reviewStatuses={reviewStatuses} activeId={activeBlockId} onSelect={setActiveBlockId} onResize={updateBoxSize} label={`${t.translated} ${pageNumber}`} /></div>
               <div className="reveal-divider" style={{ left: `${reveal}%` }}><span><ChevronLeft size={14} /><ChevronRight size={14} /></span></div></div>
             <label className="reveal-range"><span>{t.reveal}</span><input type="range" min="0" max="100" value={reveal} onChange={(e) => setReveal(Number(e.target.value))} /></label>
           </div>}
         </div>
         <aside className="block-editor" aria-labelledby="review-panel-title"><div className="editor-heading"><div><span><Pencil size={17} /></span><div><h2 id="review-panel-title">{t.reviewPanel}</h2><p>{t.reviewPanelBody}</p></div></div>
-          {pageBlocks.every((block) => !block.needsReview || excludedBlocks[block.id]) && <span className="all-clear"><Check size={14} /> {t.noReview}</span>}</div>
+          {pageBlocks.every((block) => !reviewStatuses[block.id]?.warning || excludedBlocks[block.id]) && <span className="all-clear"><Check size={14} /> {t.noReview}</span>}</div>
           <div className="block-list">{pageBlocks.length === 0 && <div className="empty-blocks"><ScanText size={25} /><p>{t.noBlocks}</p></div>}
-            {pageBlocks.map((block, index) => { const isExcluded = Boolean(excludedBlocks[block.id]); return <article key={block.id} className={`block-card${block.needsReview && !isExcluded ? " needs-review" : ""}${activeBlockId === block.id ? " is-active" : ""}${isExcluded ? " is-excluded" : ""}`} onClick={() => { if (!isExcluded) setActiveBlockId(block.id); }}>
-              <div className="block-card-top"><span>#{String(index + 1).padStart(2, "0")}</span>{isExcluded ? <b className="confidence"><EyeOff size={14} /> {t.originalKept}</b> : block.needsReview ? <b><AlertTriangle size={14} /> {block.reviewReason || t.lowConfidence}</b> : <b className="confidence"><Check size={14} /> {Math.round(block.confidence * 100)}% {t.confidence}</b>}</div>
+            {pageBlocks.map((block, index) => { const isExcluded = Boolean(excludedBlocks[block.id]); const review = reviewStatuses[block.id]; return <article key={block.id} className={`block-card${review?.warning && !isExcluded ? " needs-review" : ""}${activeBlockId === block.id ? " is-active" : ""}${isExcluded ? " is-excluded" : ""}`} onClick={() => { if (!isExcluded) setActiveBlockId(block.id); }}>
+              <div className="block-card-top"><span>#{String(index + 1).padStart(2, "0")}</span>{isExcluded ? <b className="confidence"><EyeOff size={14} /> {t.originalKept}</b> : review?.warning ? <b><AlertTriangle size={14} /> {review.reason || t.layoutWarning}</b> : <b className="confidence"><Check size={14} /> {Math.round(block.confidence * 100)}% {t.confidence}</b>}</div>
               <label><span>{t.originalText}</span><div className="original-text" lang="auto">{block.originalText}</div></label>
               <button type="button" className={`keep-original-button${isExcluded ? " is-active" : ""}`} onClick={(event) => { event.stopPropagation(); keepOriginal(block); }}>
                 {isExcluded ? <Undo2 size={14} /> : <EyeOff size={14} />} {isExcluded ? t.restoreTranslationBlock : t.keepOriginal}

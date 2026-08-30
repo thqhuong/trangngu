@@ -257,6 +257,43 @@ describe("PDF workflow", () => {
       excludedBlockIds: ["unknown"],
     }, config, services)).rejects.toMatchObject({ code: "INVALID_CORRECTIONS" });
   }, 30_000);
+
+  it("exports overflowing adjacent translations without clipping or blocking download", async () => {
+    const document = await PDFDocument.create();
+    const font = await document.embedFont(StandardFonts.Helvetica);
+    const page = document.addPage([300, 200]);
+    page.drawText("First source text", { x: 30, y: 130, size: 11, font });
+    page.drawText("Second source text", { x: 30, y: 110, size: 11, font });
+    const source = Buffer.from(await document.save());
+    const sessionPayload: SessionPayload = {
+      version: 1,
+      requestId: "00000000-0000-4000-8000-000000000001",
+      fileName: "overlap.pdf",
+      documentHash: sha256(source),
+      targetLanguage: "vi",
+      pageCount: 1,
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      pages: [{
+        page: 1, width: 300, height: 200, extraction: "embedded", blocks: [
+          { id: "first", page: 1, box: { x: 0.1, y: 0.25, width: 0.8, height: 0.07 }, originalText: "First source text", translatedText: "First translation", confidence: 0.99, needsReview: false, style: { fontSize: 12, color: "#111111", bold: false, italic: false, align: "left" } },
+          { id: "second", page: 1, box: { x: 0.1, y: 0.29, width: 0.8, height: 0.07 }, originalText: "Second source text", translatedText: "Second translation", confidence: 0.99, needsReview: false, style: { fontSize: 12, color: "#111111", bold: false, italic: false, align: "left" } },
+        ],
+      }],
+    };
+    const services = createBackendServices(config, { translator });
+    const result = await exportPdf({
+      file: source,
+      sessionToken: signSession(sessionPayload, services.sessionSecret!),
+      corrections: {
+        first: "First translation extends beyond this tight text box and remains visible in the exported PDF.",
+        second: "Second translation is intentionally adjacent so the text can overlap without blocking export.",
+      },
+    }, config, services);
+    expect(result.buffer.subarray(0, 5).toString()).toBe("%PDF-");
+    const text = (await inspectPdf(result.buffer, config)).embeddedPages.flatMap((item) => item.blocks).map((item) => item.originalText).join(" ");
+    expect(text).toContain("First translation");
+    expect(text).toContain("Second translation");
+  }, 30_000);
 });
 
 describe("security and quotas", () => {

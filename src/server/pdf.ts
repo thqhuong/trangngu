@@ -246,17 +246,44 @@ function sampleBackground(image: RawImage, block: TranslationBlock): { r: number
   return { r: median(0), g: median(1), b: median(2) };
 }
 
-interface FittedText { lines: string[]; size: number; lineHeight: number }
+interface FittedText {
+  lines: string[];
+  size: number;
+  lineHeight: number;
+  ascent: number;
+  topPadding: number;
+  overflows: boolean;
+}
+
+function fontMetrics(font: PDFFont, size: number): { ascent: number; descent: number; lineHeight: number; topPadding: number; bottomPadding: number } {
+  const ascent = font.heightAtSize(size, { descender: false });
+  const totalHeight = font.heightAtSize(size, { descender: true });
+  const descent = Math.max(size * 0.18, totalHeight - ascent);
+  return {
+    ascent,
+    descent,
+    lineHeight: Math.max(size * 1.24, totalHeight + size * 0.1),
+    topPadding: Math.max(1.5, size * 0.14),
+    bottomPadding: Math.max(1.75, size * 0.22),
+  };
+}
+
+function textHeight(lineCount: number, metrics: ReturnType<typeof fontMetrics>): number {
+  return metrics.topPadding + metrics.ascent + Math.max(0, lineCount - 1) * metrics.lineHeight + metrics.descent + metrics.bottomPadding;
+}
 
 function fitText(text: string, font: PDFFont, requestedSize: number, width: number, height: number): FittedText | undefined {
-  const initial = Math.min(requestedSize, height / 1.15);
-  const minimum = Math.max(3.5, initial * 0.5);
-  for (let size = initial; size >= minimum; size -= 0.25) {
+  const initial = Math.max(3.5, requestedSize);
+  for (let size = initial; size >= 3.5; size -= 0.25) {
     const lines = wrapText(text, font, size, width);
-    const lineHeight = size * 1.15;
-    if (lines.length * lineHeight <= height + 0.01) return { lines, size, lineHeight };
+    const metrics = fontMetrics(font, size);
+    if (textHeight(lines.length, metrics) <= height + 0.01) {
+      return { lines, size, lineHeight: metrics.lineHeight, ascent: metrics.ascent, topPadding: metrics.topPadding, overflows: false };
+    }
   }
-  return undefined;
+  const lines = wrapText(text, font, 3.5, width);
+  const metrics = fontMetrics(font, 3.5);
+  return { lines, size: 3.5, lineHeight: metrics.lineHeight, ascent: metrics.ascent, topPadding: metrics.topPadding, overflows: true };
 }
 
 function wrapText(text: string, font: PDFFont, size: number, maxWidth: number): string[] {
@@ -290,6 +317,18 @@ function colorFromHex(value: string): { r: number; g: number; b: number } {
     g: Number.parseInt(value.slice(3, 5), 16) / 255,
     b: Number.parseInt(value.slice(5, 7), 16) / 255,
   };
+}
+
+interface RenderedBlock {
+  block: TranslationBlock;
+  x: number;
+  y: number;
+  originalWidth: number;
+  originalHeight: number;
+  boxWidth: number;
+  boxHeight: number;
+  background: { r: number; g: number; b: number };
+  fitted: FittedText;
 }
 
 export async function exportTranslatedPdf(
@@ -342,6 +381,7 @@ export async function exportTranslatedPdf(
       const image = await output.embedPng(png);
       const page = output.addPage([pageInfo.width, pageInfo.height]);
       page.drawImage(image, { x: 0, y: 0, width: pageInfo.width, height: pageInfo.height });
+      const renderedBlocks: RenderedBlock[] = [];
       for (const block of pageInfo.blocks) {
         if (excludedBlocks.has(block.id)) continue;
         const translatedText = corrections[block.id] ?? block.translatedText;
@@ -350,11 +390,21 @@ export async function exportTranslatedPdf(
         const top = block.box.y * pageInfo.height;
         const originalWidth = block.box.width * pageInfo.width;
         const originalHeight = block.box.height * pageInfo.height;
-        const originalY = pageInfo.height - top - originalHeight;
         const boxWidth = (adjustedSize?.width ?? block.box.width) * pageInfo.width;
         const boxHeight = (adjustedSize?.height ?? block.box.height) * pageInfo.height;
         const y = pageInfo.height - top - boxHeight;
         const background = sampleBackground(raw, block);
+        const fitted = fitText(translatedText, font, fontSizeAdjustments[block.id] ?? block.style.fontSize, boxWidth, boxHeight);
+        if (!fitted) throw new AppError("EXPORT_FAILED", "The translated PDF layout could not be calculated.", 500);
+        renderedBlocks.push({ block, x, y, originalWidth, originalHeight, boxWidth, boxHeight, background, fitted });
+      }
+
+      // Clear every source region before painting translations. Drawing a later block's
+      // background after an earlier translation can slice off descenders at the boundary.
+      // Text is intentionally painted in a second pass so nearby user-resized boxes may overlap.
+      for (const rendered of renderedBlocks) {
+        const { block, x, originalWidth, originalHeight, background } = rendered;
+        const originalY = pageInfo.height - block.box.y * pageInfo.height - originalHeight;
         const erasePaddingX = Math.max(2.5, Math.min(12, block.style.fontSize * 0.26));
         const erasePaddingY = Math.max(3, Math.min(12, block.style.fontSize * 0.42));
         const eraseX = Math.max(0, x - erasePaddingX);
@@ -366,13 +416,9 @@ export async function exportTranslatedPdf(
           height: Math.min(pageInfo.height - eraseY, originalHeight + erasePaddingY * 2),
           color: rgb(background.r / 255, background.g / 255, background.b / 255),
         });
-        const fitted = fitText(translatedText, font, fontSizeAdjustments[block.id] ?? block.style.fontSize, boxWidth, boxHeight);
-        if (!fitted) {
-          throw new AppError(
-            "INVALID_CORRECTIONS",
-            `Text in block ${block.id} does not fit its page area. Shorten the correction and export again.`,
-          );
-        }
+      }
+      for (const rendered of renderedBlocks) {
+        const { block, x, y, boxWidth, boxHeight, fitted } = rendered;
         const foreground = colorFromHex(block.style.color);
         for (const [lineIndex, line] of fitted.lines.entries()) {
           const lineWidth = font.widthOfTextAtSize(line, fitted.size);
@@ -381,7 +427,7 @@ export async function exportTranslatedPdf(
             : block.style.align === "right" ? x + Math.max(0, boxWidth - lineWidth) : x;
           page.drawText(line, {
             x: alignedX,
-            y: y + boxHeight - fitted.size - lineIndex * fitted.lineHeight,
+            y: y + boxHeight - fitted.topPadding - fitted.ascent - lineIndex * fitted.lineHeight,
             size: fitted.size,
             font,
             color: rgb(foreground.r, foreground.g, foreground.b),

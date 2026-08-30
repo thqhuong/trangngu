@@ -2,6 +2,14 @@
 
 All notable changes to TrangNgữ are recorded here.
 
+## [Unreleased]
+
+### Fixed
+
+- Recalculate review warnings instantly from the current translation, box size, and point size; warnings clear when the content fits and return when it no longer does.
+- Use a yellow, non-blocking layout warning for text overflow or overlapping translated boxes, so users retain control of their preferred layout and can export it.
+- Render every source-cover mask before translated text and reserve font ascender/descender space, preventing neighboring blocks from clipping the bottoms of glyphs in exported PDFs.
+
 ## [0.1.0] - 2026-08-29
 
 ### Added
