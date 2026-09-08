@@ -5,7 +5,7 @@ const envSchema = z.object({
   HOST: z.string().default("0.0.0.0"),
   PORT: z.coerce.number().int().positive().default(8787),
   GEMINI_API_KEY: z.string().optional(),
-  GEMINI_MODEL: z.string().default("gemini-3.5-flash"),
+  GEMINI_MODEL: z.string().default("gemini-3.5-flash-lite"),
   GOOGLE_CLOUD_PROJECT: z.string().optional(),
   DOCUMENT_AI_LOCATION: z.string().default("asia-southeast1"),
   DOCUMENT_AI_PROCESSOR_ID: z.string().optional(),

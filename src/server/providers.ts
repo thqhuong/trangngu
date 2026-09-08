@@ -163,27 +163,35 @@ export class GeminiTranslationProvider implements TranslationProvider {
         },
       };
 
-      // Retry the entire Gemini call+validation up to 2 extra times for
-      // transient safety-filter blocks and malformed responses.
+      // Support candidate models to gracefully fall back if a model-specific daily quota is reached
+      const candidateModels = [this.config.geminiModel, "gemini-3.5-flash-lite", "gemini-3.6-flash"].filter(
+        (m, idx, arr) => arr.indexOf(m) === idx
+      );
       const MAX_GEMINI_ATTEMPTS = 3;
       let lastGeminiError: unknown;
       let batchSuccess = false;
 
-      for (let geminiAttempt = 0; geminiAttempt < MAX_GEMINI_ATTEMPTS; geminiAttempt++) {
-        let response: Awaited<ReturnType<GoogleGenAI["models"]["generateContent"]>>;
-        try {
-          response = await retryTransient(() => withTimeout(
-            this.client.models.generateContent(requestPayload),
-            this.config.geminiTimeoutMs, "MODEL_TIMEOUT",
-          ));
-        } catch (error) {
-          if (error instanceof AppError) throw error;
-          const candidate = error as { status?: number; code?: number | string };
-          if (Number(candidate.status ?? candidate.code) === 429) {
-            throw new AppError("MODEL_QUOTA", "Translation quota is temporarily unavailable. Please try again later.", 429);
+      for (const model of candidateModels) {
+        if (batchSuccess) break;
+        const currentPayload = { ...requestPayload, model };
+
+        for (let geminiAttempt = 0; geminiAttempt < MAX_GEMINI_ATTEMPTS; geminiAttempt++) {
+          let response: Awaited<ReturnType<GoogleGenAI["models"]["generateContent"]>>;
+          try {
+            response = await retryTransient(() => withTimeout(
+              this.client.models.generateContent(currentPayload),
+              this.config.geminiTimeoutMs, "MODEL_TIMEOUT",
+            ));
+          } catch (error) {
+            if (error instanceof AppError) throw error;
+            const candidate = error as { status?: number; code?: number | string };
+            if (Number(candidate.status ?? candidate.code) === 429) {
+              console.warn(`Model ${model} returned 429 quota, trying alternative model if available...`);
+              lastGeminiError = new AppError("MODEL_QUOTA", "Translation quota is temporarily unavailable. Please try again later.", 429);
+              break; // try next candidate model
+            }
+            throw new AppError("MODEL_UNAVAILABLE", "Translation is temporarily unavailable. Please try again.", 503);
           }
-          throw new AppError("MODEL_UNAVAILABLE", "Translation is temporarily unavailable. Please try again.", 503);
-        }
 
         // Check for safety-filter blocks (response.text is null/empty)
         const rawText = response.text ?? "";
@@ -247,9 +255,11 @@ export class GeminiTranslationProvider implements TranslationProvider {
         batchSuccess = true;
         break;
       }
-      if (!batchSuccess) throw lastGeminiError;
+      if (batchSuccess) break;
     }
-    return output;
+    if (!batchSuccess) throw lastGeminiError;
+  }
+  return output;
   }
 }
 

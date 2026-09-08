@@ -3,7 +3,7 @@ substitutions:
   _SERVICE: trangngu
   _REPOSITORY: trangngu
   _DOCUMENT_AI_PROCESSOR_ID: e0a3a06f46f66a72
-  _GEMINI_MODEL: gemini-3.5-flash
+  _GEMINI_MODEL: gemini-3.5-flash-lite
 
 steps:
   - name: gcr.io/cloud-builders/docker
