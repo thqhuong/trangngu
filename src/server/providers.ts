@@ -25,7 +25,7 @@ export interface TranslationProvider {
 const modelResultSchema = z.object({
   translations: z.array(z.object({
     id: z.string().min(1).max(80),
-    translatedText: z.string().min(1).max(20_000),
+    translatedText: z.string().max(20_000),
   })).max(100),
 });
 
@@ -52,9 +52,12 @@ export function estimateOcrFontSize(text: string, boxWidth: number, boxHeight: n
 function isTransient(error: unknown): boolean {
   const candidate = error as { status?: number; code?: number | string; message?: string };
   const status = Number(candidate?.status ?? candidate?.code);
+  // gRPC code 2 = UNKNOWN, 13 = INTERNAL, 14 = UNAVAILABLE — all transient on Document AI
   return status === 429 || (status >= 500 && status <= 504) ||
+    status === 2 || status === 13 || status === 14 ||
     candidate?.code === "RESOURCE_EXHAUSTED" || candidate?.code === "UNAVAILABLE" ||
-    /ECONNRESET|ETIMEDOUT|temporar|unavailable/i.test(candidate?.message ?? "");
+    candidate?.code === "UNKNOWN" || candidate?.code === "INTERNAL" ||
+    /ECONNRESET|ETIMEDOUT|UNKNOWN|temporar|unavailable/i.test(candidate?.message ?? "");
 }
 
 async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, code: "MODEL_TIMEOUT" | "OCR_TIMEOUT"): Promise<T> {
@@ -73,15 +76,24 @@ async function withTimeout<T>(operation: Promise<T>, timeoutMs: number, code: "M
   }
 }
 
+const MAX_RETRIES = 3;
+
 async function retryTransient<T>(operation: () => Promise<T>): Promise<T> {
-  try {
-    return await operation();
-  } catch (error) {
-    const retryableTimeout = error instanceof AppError && (error.code === "MODEL_TIMEOUT" || error.code === "OCR_TIMEOUT");
-    if ((!retryableTimeout && error instanceof AppError) || (!retryableTimeout && !isTransient(error))) throw error;
-    await new Promise((resolve) => setTimeout(resolve, 200 + Math.floor(Math.random() * 250)));
-    return operation();
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await operation();
+    } catch (error) {
+      lastError = error;
+      const retryableTimeout = error instanceof AppError && (error.code === "MODEL_TIMEOUT" || error.code === "OCR_TIMEOUT");
+      if ((!retryableTimeout && error instanceof AppError) || (!retryableTimeout && !isTransient(error))) throw error;
+      if (attempt >= MAX_RETRIES) break;
+      // Exponential backoff: ~500ms, ~1.5s, ~4s
+      const backoff = Math.min(8_000, (500 * Math.pow(2.5, attempt)) + Math.floor(Math.random() * 500));
+      await new Promise((resolve) => setTimeout(resolve, backoff));
+    }
   }
+  throw lastError;
 }
 
 export class GeminiTranslationProvider implements TranslationProvider {
@@ -118,7 +130,7 @@ export class GeminiTranslationProvider implements TranslationProvider {
               "Return only JSON matching the response schema.",
             ].join(" "),
             temperature: 0.1,
-            maxOutputTokens: 8_192,
+            maxOutputTokens: 16_384,
             responseMimeType: "application/json",
             responseJsonSchema: {
               type: "object",
@@ -182,7 +194,7 @@ export function makeBatches(blocks: TranslationBlock[]): TranslationBlock[][] {
   for (const block of blocks) {
     // Keep structured output comfortably below the model token ceiling. Dense OCR
     // pages can contain thousands of notation fragments even when the PDF is small.
-    if (batch.length > 0 && (batch.length >= 40 || characters + block.originalText.length > 6_000)) {
+    if (batch.length > 0 && (batch.length >= 20 || characters + block.originalText.length > 2_500)) {
       batches.push(batch);
       batch = [];
       characters = 0;
@@ -247,18 +259,33 @@ export class DocumentAiOcrProvider implements OcrProvider {
 
   async extract(pdf: Buffer, pageNumbers: number[]): Promise<ExtractedPage[]> {
     const name = `projects/${this.config.googleCloudProject}/locations/${this.config.documentAiLocation}/processors/${this.config.documentAiProcessorId}`;
-    let result: unknown;
-    try {
-      [result] = await retryTransient(() => withTimeout(this.client.processDocument({
-        name,
-        rawDocument: { content: pdf.toString("base64"), mimeType: "application/pdf" },
-        processOptions: { individualPageSelector: { pages: pageNumbers } },
-      }, { timeout: this.config.documentAiTimeoutMs }), this.config.documentAiTimeoutMs, "OCR_TIMEOUT"));
-    } catch (error) {
-      if (error instanceof AppError) throw error;
-      console.error("Document AI OCR error:", error);
-      throw new AppError("OCR_UNAVAILABLE", "Text recognition is temporarily unavailable. Please try again.", 503);
+    const pdfBase64 = pdf.toString("base64");
+    // Give the gRPC client 50% more time than our application timeout so that
+    // our wrapper (which produces a clearer error) fires first.
+    const grpcTimeoutMs = Math.ceil(this.config.documentAiTimeoutMs * 1.5);
+
+    // Process pages individually to reduce payload size and avoid "UNKNOWN"
+    // errors that Document AI returns when processing too many pages at once.
+    const allPages: ExtractedPage[] = [];
+    for (const pageNum of pageNumbers) {
+      let result: unknown;
+      try {
+        [result] = await retryTransient(() => withTimeout(this.client.processDocument({
+          name,
+          rawDocument: { content: pdfBase64, mimeType: "application/pdf" },
+          processOptions: { individualPageSelector: { pages: [pageNum] } },
+        }, { timeout: grpcTimeoutMs }), this.config.documentAiTimeoutMs, "OCR_TIMEOUT"));
+      } catch (error) {
+        if (error instanceof AppError) throw error;
+        console.error(`Document AI OCR error (page ${pageNum}):`, error);
+        throw new AppError("OCR_UNAVAILABLE", "Text recognition is temporarily unavailable. Please try again.", 503);
+      }
+      allPages.push(...this.parseResult(result, [pageNum]));
     }
+    return allPages;
+  }
+
+  private parseResult(result: unknown, pageNumbers: number[]): ExtractedPage[] {
 
     const document = (result as { document?: { text?: string | null; pages?: DocumentAiPage[] | null } }).document;
     const fullText = document?.text ?? "";
