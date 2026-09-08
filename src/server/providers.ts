@@ -88,8 +88,12 @@ async function retryTransient<T>(operation: () => Promise<T>): Promise<T> {
       const retryableTimeout = error instanceof AppError && (error.code === "MODEL_TIMEOUT" || error.code === "OCR_TIMEOUT");
       if ((!retryableTimeout && error instanceof AppError) || (!retryableTimeout && !isTransient(error))) throw error;
       if (attempt >= MAX_RETRIES) break;
-      // Exponential backoff: ~500ms, ~1.5s, ~4s
-      const backoff = Math.min(8_000, (500 * Math.pow(2.5, attempt)) + Math.floor(Math.random() * 500));
+      const candidate = error as { status?: number; code?: number | string };
+      const status = Number(candidate?.status ?? candidate?.code);
+      // For rate limits (429), give the rolling quota window time to reset (10s, 20s, 30s)
+      const backoff = status === 429
+        ? 10_000 * (attempt + 1) + Math.floor(Math.random() * 2_000)
+        : Math.min(8_000, (500 * Math.pow(2.5, attempt)) + Math.floor(Math.random() * 500));
       await new Promise((resolve) => setTimeout(resolve, backoff));
     }
   }
@@ -105,7 +109,12 @@ export class GeminiTranslationProvider implements TranslationProvider {
 
   async translate(blocks: TranslationBlock[], targetLanguage: LanguageCode): Promise<Map<string, string>> {
     const output = new Map<string, string>();
-    for (const batch of makeBatches(blocks)) {
+    const batches = makeBatches(blocks);
+    for (let bIdx = 0; bIdx < batches.length; bIdx++) {
+      const batch = batches[bIdx];
+      if (bIdx > 0) {
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
       const requestPayload = {
         model: this.config.geminiModel,
         contents: JSON.stringify({
@@ -251,7 +260,7 @@ export function makeBatches(blocks: TranslationBlock[]): TranslationBlock[][] {
   for (const block of blocks) {
     // Keep structured output comfortably below the model token ceiling. Dense OCR
     // pages can contain thousands of notation fragments even when the PDF is small.
-    if (batch.length > 0 && (batch.length >= 20 || characters + block.originalText.length > 2_500)) {
+    if (batch.length > 0 && (batch.length >= 40 || characters + block.originalText.length > 5_000)) {
       batches.push(batch);
       batch = [];
       characters = 0;
